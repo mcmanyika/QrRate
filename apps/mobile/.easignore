@@ -1,0 +1,10 @@
+node_modules/
+npm-debug.log
+*.iml
+.idea/
+.vscode/
+dist/
+build/
+android/
+ios/
+
