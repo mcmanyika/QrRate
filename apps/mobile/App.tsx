@@ -673,7 +673,7 @@ export default function App() {
     return (
       <ScrollView 
         style={styles.scrollContainer}
-        contentContainerStyle={styles.container}
+        contentContainerStyle={styles.statsContainer}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.statsHeader}>
@@ -975,6 +975,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8fafc',
     padding: 20,
     paddingTop: 140,
+    paddingBottom: 100,
+  },
+  statsContainer: {
+    backgroundColor: '#f8fafc',
+    padding: 20,
+    paddingTop: 20,
     paddingBottom: 100,
   },
   homeContainer: {
@@ -1516,10 +1522,38 @@ const styles = StyleSheet.create({
   },
   statsHeader: {
     marginBottom: 24,
-    marginTop: 16,
+    marginTop: 40,
+  },
+  statsHeaderContent: {
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  statsIconContainer: {
+    width: 96,
+    height: 96,
+    backgroundColor: '#2563eb',
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 24,
+    shadowColor: '#2563eb',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 12,
+  },
+  statsIcon: {
+    fontSize: 48,
+  },
+  statsAppName: {
+    fontSize: 36,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 12,
   },
   backButtonStats: {
-    marginBottom: 16,
+    marginBottom: 12,
+    alignSelf: 'flex-start',
   },
   backButtonText: {
     fontSize: 16,
@@ -1531,11 +1565,13 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#111827',
     marginBottom: 4,
+    textAlign: 'center',
   },
   statsSubtitle: {
     fontSize: 18,
     color: '#6b7280',
     fontWeight: '600',
+    textAlign: 'center',
   },
   loadingText: {
     marginTop: 16,
