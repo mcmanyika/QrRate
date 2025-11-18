@@ -21,6 +21,13 @@ type PendingRating = {
 
 const TAGS = ['Cleanliness', 'Driving safety', 'Friendliness', 'Punctuality'];
 
+// UUID validation regex (matches standard UUID format)
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+const isValidUUID = (str: string | null | undefined): boolean => {
+  return !!str && UUID_REGEX.test(str);
+};
+
 type VehicleStats = {
   avgStars: number;
   numRatings: number;
@@ -36,6 +43,7 @@ export default function App() {
   const [routeId, setRouteId] = useState<string | null>(null);
   const [regNumber, setRegNumber] = useState('');
   const [regNumberError, setRegNumberError] = useState('');
+  const [scanError, setScanError] = useState('');
   const [stars, setStars] = useState(0);
   const [tagRatings, setTagRatings] = useState<Record<string, number>>({});
   const [comment, setComment] = useState('');
@@ -43,19 +51,50 @@ export default function App() {
   const [stats, setStats] = useState<VehicleStats | null>(null);
   const [loadingStats, setLoadingStats] = useState(false);
   const [vehicleRegNumber, setVehicleRegNumber] = useState<string>('');
+  const [submitError, setSubmitError] = useState('');
+  const [submitLoading, setSubmitLoading] = useState(false);
 
   const queueKey = 'pending_ratings_v1';
 
   const syncQueuedRatings = useCallback(async () => {
-    const payload: PendingRating[] = JSON.parse((await AsyncStorage.getItem(queueKey)) || '[]');
-    if (!payload.length) return;
     try {
-      const { error } = await supabase.from('rating').insert(payload);
+      const stored = await AsyncStorage.getItem(queueKey);
+      if (!stored) return;
+      
+      const payload: PendingRating[] = JSON.parse(stored);
+      if (!payload.length) return;
+      
+      // Filter out any ratings with invalid UUIDs
+      const validRatings = payload.filter(r => {
+        const isValid = isValidUUID(r.vehicle_id);
+        if (!isValid) {
+          console.warn('Filtered out queued rating with invalid vehicle_id:', r.vehicle_id);
+        }
+        return isValid;
+      });
+      
+      if (!validRatings.length) {
+        // All ratings were invalid, clear the queue
+        await AsyncStorage.removeItem(queueKey);
+        return;
+      }
+      
+      // Clean up route_id in valid ratings
+      const cleanedRatings = validRatings.map(r => ({
+        ...r,
+        route_id: r.route_id && isValidUUID(r.route_id) ? r.route_id : null
+      }));
+      
+      const { error } = await supabase.from('rating').insert(cleanedRatings);
       if (!error) {
         await AsyncStorage.removeItem(queueKey);
+      } else {
+        // Error syncing - will retry on next app start or when user submits another rating
+        console.warn('Error syncing queued ratings:', error);
       }
-    } catch {
-      // swallow; will retry later
+    } catch (error) {
+      // If we can't read/write to storage or parse JSON, just log and continue
+      console.error('Error in syncQueuedRatings:', error);
     }
   }, []);
 
@@ -64,6 +103,17 @@ export default function App() {
     syncQueuedRatings();
   }, [syncQueuedRatings]);
 
+  // Auto-dismiss scan errors after 10 seconds
+  useEffect(() => {
+    if (scanError) {
+      const timer = setTimeout(() => {
+        setScanError('');
+      }, 10000); // 10 seconds
+
+      return () => clearTimeout(timer);
+    }
+  }, [scanError]);
+
   const deviceHash = useMemo(() => {
     // Very simple per-install id persisted in storage
     const key = 'device_hash_v1';
@@ -71,12 +121,18 @@ export default function App() {
     return {
       get: async () => {
         if (cached) return cached;
-        const v = await AsyncStorage.getItem(key);
-        if (v) { cached = v; return v; }
-        const gen = Math.random().toString(36).slice(2) + Date.now().toString(36);
-        await AsyncStorage.setItem(key, gen);
-        cached = gen;
-        return gen;
+        try {
+          const v = await AsyncStorage.getItem(key);
+          if (v) { cached = v; return v; }
+          const gen = Math.random().toString(36).slice(2) + Date.now().toString(36);
+          await AsyncStorage.setItem(key, gen);
+          cached = gen;
+          return gen;
+        } catch (error) {
+          // If storage fails, generate a temporary hash
+          console.warn('AsyncStorage error, using temporary device hash:', error);
+          return Math.random().toString(36).slice(2) + Date.now().toString(36);
+        }
       }
     };
   }, []);
@@ -84,24 +140,33 @@ export default function App() {
   const fetchVehicleStats = useCallback(async (vId: string) => {
     setLoadingStats(true);
     setStats(null);
+    setScanError(''); // Clear any previous errors
     try {
       // Fetch vehicle reg number
-      const { data: vehicleData } = await supabase
+      const { data: vehicleData, error: vehicleError } = await supabase
         .from('vehicle')
         .select('reg_number')
         .eq('id', vId)
         .maybeSingle();
+      
+      if (vehicleError) {
+        throw new Error('Unable to fetch vehicle information');
+      }
       
       if (vehicleData) {
         setVehicleRegNumber(vehicleData.reg_number);
       }
 
       // Fetch overall stats from view
-      const { data: viewData } = await supabase
+      const { data: viewData, error: viewError } = await supabase
         .from('vehicle_avg_last_7d')
         .select('avg_stars, num_ratings')
         .eq('vehicle_id', vId)
         .maybeSingle();
+
+      if (viewError) {
+        console.warn('Error fetching view data (non-critical):', viewError);
+      }
 
       // Fetch all ratings for this vehicle
       const { data: ratingsData, error: ratingsError } = await supabase
@@ -112,9 +177,7 @@ export default function App() {
         .limit(10);
 
       if (ratingsError) {
-        console.error('Error fetching ratings:', ratingsError);
-        setLoadingStats(false);
-        return;
+        throw new Error('Unable to fetch ratings');
       }
 
       // Calculate overall stats
@@ -163,6 +226,8 @@ export default function App() {
       });
     } catch (error) {
       console.error('Error fetching vehicle stats:', error);
+      setScanError('Unable to load vehicle statistics. Please check your connection and try again.');
+      setStats(null);
     } finally {
       setLoadingStats(false);
     }
@@ -186,6 +251,14 @@ export default function App() {
       scannedVehicleId = data;
     }
     
+    // Validate that scannedVehicleId is a valid UUID before proceeding
+    if (!scannedVehicleId || !isValidUUID(scannedVehicleId)) {
+      console.warn('Invalid vehicle ID scanned:', scannedVehicleId);
+      setScanError('Invalid QR code. Please scan a valid vehicle QR code.');
+      setScanning(false);
+      return;
+    }
+    
     if (scannedVehicleId) {
       // Fetch vehicle to get route_id and reg_number
       try {
@@ -200,16 +273,25 @@ export default function App() {
           setVehicleId(vehicleData.id);
           setRouteId(vehicleData.route_id);
           setVehicleRegNumber(vehicleData.reg_number);
+          setScanError(''); // Clear any previous errors
           if (viewMode === 'stats') {
             await fetchVehicleStats(vehicleData.id);
           }
         } else {
-          setVehicleId(scannedVehicleId);
+          // Vehicle not found - show error message
+          console.warn('Vehicle not found for ID:', scannedVehicleId);
+          setScanError('Vehicle not found. This QR code may be invalid or the vehicle may have been removed.');
+          setVehicleId(null);
           setRouteId(null);
           setVehicleRegNumber('');
         }
-      } catch {
-        setVehicleId(scannedVehicleId);
+      } catch (err) {
+        console.error('Error fetching vehicle:', err);
+        const errorMessage = err instanceof Error && err.message.includes('network')
+          ? 'Network error. Please check your connection and try again.'
+          : 'Unable to look up vehicle. Please try again.';
+        setScanError(errorMessage);
+        setVehicleId(null);
         setRouteId(null);
         setVehicleRegNumber('');
       }
@@ -235,7 +317,10 @@ export default function App() {
       
       if (error && error.code !== 'PGRST116') {
         // PGRST116 is "not found" which is fine, other errors are real problems
-        setRegNumberError('Unable to search. Please try again.');
+        const errorMessage = error.message?.includes('network') || error.message?.includes('fetch')
+          ? 'Network error. Please check your connection and try again.'
+          : 'Unable to search. Please try again.';
+        setRegNumberError(errorMessage);
         return;
       }
       
@@ -275,33 +360,72 @@ export default function App() {
         }
       }
       
+      // Validate that we got a valid UUID from the database
+      if (!data || !isValidUUID(data.id)) {
+        setRegNumberError('Invalid vehicle data received. Please try again.');
+        return;
+      }
+      
       setVehicleId(data.id);
-      setRouteId(data.route_id);
+      setRouteId(data.route_id && isValidUUID(data.route_id) ? data.route_id : null);
       setVehicleRegNumber(data.reg_number);
       setRegNumber('');
+      setRegNumberError(''); // Clear any errors on success
       if (viewMode === 'stats') {
         await fetchVehicleStats(data.id);
       }
     } catch (err) {
-      setRegNumberError('Unable to process. Please try again.');
+      const errorMessage = err instanceof Error && (err.message.includes('network') || err.message.includes('fetch'))
+        ? 'Network error. Please check your connection and try again.'
+        : 'Unable to process. Please try again.';
+      setRegNumberError(errorMessage);
     }
   };
 
   const enqueue = async (r: PendingRating) => {
-    const arr = JSON.parse((await AsyncStorage.getItem(queueKey)) || '[]');
-    arr.push(r);
-    await AsyncStorage.setItem(queueKey, JSON.stringify(arr));
+    try {
+      const stored = await AsyncStorage.getItem(queueKey);
+      const arr = stored ? JSON.parse(stored) : [];
+      arr.push(r);
+      await AsyncStorage.setItem(queueKey, JSON.stringify(arr));
+    } catch (error) {
+      console.error('Error queuing rating:', error);
+      // If we can't queue, we'll just lose this rating - better than crashing
+    }
   };
 
   const submit = async () => {
     if (!vehicleId || stars < 1) return;
+    
+    setSubmitError('');
+    setSubmitLoading(true);
+    
+    // Validate UUIDs before submitting
+    if (!isValidUUID(vehicleId)) {
+      setSubmitError('Invalid vehicle information. Please try scanning again.');
+      setSubmitLoading(false);
+      return;
+    }
+    
+    // Only include route_id if it's a valid UUID
+    const validRouteId = routeId && isValidUUID(routeId) ? routeId : null;
+    
+    let deviceHashValue: string;
+    try {
+      deviceHashValue = await deviceHash.get();
+    } catch (error) {
+      setSubmitError('Unable to process rating. Please try again.');
+      setSubmitLoading(false);
+      return;
+    }
+    
     const r: PendingRating = {
       vehicle_id: vehicleId,
-      route_id: routeId,
+      route_id: validRouteId,
       stars,
       tag_ratings: tagRatings,
       comment: comment.trim() || undefined,
-      device_hash: await deviceHash.get(),
+      device_hash: deviceHashValue,
       created_at: new Date().toISOString()
     };
     let success = false;
@@ -314,13 +438,17 @@ export default function App() {
       // Build insert payload - only include tag_ratings if we have ratings
       const insertPayload: any = {
         vehicle_id: r.vehicle_id,
-        route_id: r.route_id,
         stars: r.stars,
         tags: tagsArray, // Tags that were rated (for backward compatibility)
         comment: r.comment,
         device_hash: r.device_hash,
         created_at: r.created_at
       };
+      
+      // Only include route_id if it's valid
+      if (validRouteId) {
+        insertPayload.route_id = validRouteId;
+      }
       
       // Try to include tag_ratings if we have any
       // If column doesn't exist, we'll retry without it
@@ -345,7 +473,11 @@ export default function App() {
       if (error) {
         console.error('Rating submission error:', error);
         await enqueue(r);
-        // Don't show thanks screen on error - just queue it for later
+        const errorMessage = error.message?.includes('network') || error.message?.includes('fetch') || error.code === 'PGRST301'
+          ? 'No internet connection. Your rating has been saved and will be submitted automatically when you have a connection.'
+          : 'Unable to submit rating. Your rating has been saved and will be submitted when you have a connection.';
+        setSubmitError(errorMessage);
+        setSubmitLoading(false);
         return;
       }
       
@@ -354,8 +486,14 @@ export default function App() {
     } catch (err) {
       console.error('Rating submission exception:', err);
       await enqueue(r);
-      // Don't show thanks screen on error - just queue it for later
+      const errorMessage = err instanceof Error && (err.message.includes('network') || err.message.includes('fetch'))
+        ? 'No internet connection. Your rating has been saved and will be submitted automatically when you have a connection.'
+        : 'Unable to submit rating. Your rating has been saved and will be submitted when you have a connection.';
+      setSubmitError(errorMessage);
+      setSubmitLoading(false);
       return;
+    } finally {
+      setSubmitLoading(false);
     }
     
     // Only show thanks screen if submission was successful
@@ -364,7 +502,8 @@ export default function App() {
       setTagRatings({}); 
       setComment(''); 
       setVehicleId(null); 
-      setRouteId(null); 
+      setRouteId(null);
+      setSubmitError('');
       setThanks(true);
       setTimeout(() => setThanks(false), 1500);
     }
@@ -446,6 +585,17 @@ export default function App() {
           <Text style={styles.subtitle}>
             Scan the QR code or enter the registration number to {viewMode === 'rate' ? 'rate' : 'view stats for'} this ride
           </Text>
+          {scanError ? (
+            <View style={styles.errorContainer}>
+              <Text style={styles.errorText}>{scanError}</Text>
+              <Pressable
+                onPress={() => setScanError('')}
+                style={styles.dismissErrorButton}
+              >
+                <Text style={styles.dismissErrorText}>Dismiss</Text>
+              </Pressable>
+            </View>
+          ) : null}
         </View>
 
         <View style={styles.toggleContainer}>
@@ -463,7 +613,11 @@ export default function App() {
         </View>
         
         <Pressable
-          onPress={() => setScanning(true)}
+          onPress={() => {
+            setScanError(''); // Clear error when starting new scan
+            setRegNumberError(''); // Clear reg number errors too
+            setScanning(true);
+          }}
           style={styles.scanButton}
         >
           <Text style={styles.scanButtonText}>📷 Scan QR Code</Text>
@@ -634,13 +788,20 @@ export default function App() {
           </View>
         ) : (
           <View style={styles.center}>
-            <Text style={styles.errorText}>Unable to load stats. Please try again.</Text>
+            {scanError ? (
+              <View style={styles.errorContainer}>
+                <Text style={styles.errorText}>{scanError}</Text>
+              </View>
+            ) : (
+              <Text style={styles.errorText}>Unable to load stats. Please try again.</Text>
+            )}
             <Pressable
               onPress={() => {
                 setVehicleId(null);
                 setRouteId(null);
                 setStats(null);
                 setVehicleRegNumber('');
+                setScanError('');
               }}
               style={styles.button}
             >
@@ -653,69 +814,90 @@ export default function App() {
   }
 
   return (
-    <ScrollView 
-      style={styles.scrollContainer}
-      contentContainerStyle={styles.container}
-      showsVerticalScrollIndicator={false}
-      keyboardShouldPersistTaps="handled"
-    >
-      <View style={styles.ratingHeader}>
-        <Text style={styles.ratingTitle}>Rate Kombi</Text>
-        <Text style={styles.ratingSubtitle}>Share your experience</Text>
-      </View>
-      
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Rating</Text>
-        <StarRow value={stars} onChange={setStars} />
+    <View style={styles.ratingPageContainer}>
+      <View style={styles.headerContainer}>
+        <View style={styles.ratingHeader}>
+          <Text style={styles.ratingTitle}>RateMyRide</Text>
+          <Text style={styles.ratingSubtitle}>Share your experience</Text>
+        </View>
       </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Rate each aspect</Text>
-        {TAGS.map((tag) => (
-          <View key={tag} style={styles.tagRatingRow}>
-            <Text style={styles.tagLabel}>{tag}</Text>
-            <View style={styles.tagStarRow}>
-              {[1, 2, 3, 4, 5].map((n) => (
-                <TouchableOpacity
-                  key={n}
-                  onPress={() => setTagRatings((prev) => ({ ...prev, [tag]: n }))}
-                  style={styles.tagStarButton}
-                >
-                  <Text style={[styles.tagStar, (tagRatings[tag] || 0) >= n && styles.tagStarSelected]}>
-                    ★
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        ))}
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Comment</Text>
-        <TextInput
-          placeholder="Add a comment (optional)"
-          value={comment}
-          maxLength={180}
-          onChangeText={setComment}
-          multiline
-          numberOfLines={4}
-          style={styles.input}
-          placeholderTextColor="#9ca3af"
-        />
-        <Text style={styles.charCount}>{comment.length}/180</Text>
-      </View>
-
-      <Pressable
-        onPress={submit}
-        disabled={stars < 1}
-        style={[styles.submitButton, stars < 1 && styles.submitButtonDisabled]}
+      <ScrollView 
+        style={styles.scrollContainer}
+        contentContainerStyle={styles.container}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
-        <Text style={[styles.submitButtonText, stars < 1 && styles.submitButtonTextDisabled]}>
-          Submit Rating
-        </Text>
-      </Pressable>
-    </ScrollView>
+        <View style={styles.section}>
+          <StarRow value={stars} onChange={setStars} />
+        </View>
+
+        <View style={styles.section}>
+          {TAGS.map((tag) => (
+            <View key={tag} style={styles.tagRatingRow}>
+              <Text style={styles.tagLabel}>{tag}</Text>
+              <View style={styles.tagStarRow}>
+                {[1, 2, 3, 4, 5].map((n) => (
+                  <TouchableOpacity
+                    key={n}
+                    onPress={() => setTagRatings((prev) => ({ ...prev, [tag]: n }))}
+                    style={styles.tagStarButton}
+                  >
+                    <Text style={[styles.tagStar, (tagRatings[tag] || 0) >= n && styles.tagStarSelected]}>
+                      ★
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          ))}
+        </View>
+
+        <View style={styles.section}>
+          <TextInput
+            placeholder="Add a comment (optional)"
+            value={comment}
+            maxLength={180}
+            onChangeText={setComment}
+            multiline
+            numberOfLines={4}
+            style={styles.input}
+            placeholderTextColor="#9ca3af"
+          />
+          <Text style={styles.charCount}>{comment.length}/180</Text>
+        </View>
+
+        {submitError ? (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>{submitError}</Text>
+            <Pressable
+              onPress={() => setSubmitError('')}
+              style={styles.dismissErrorButton}
+            >
+              <Text style={styles.dismissErrorText}>Dismiss</Text>
+            </Pressable>
+          </View>
+        ) : null}
+
+        <View style={styles.submitButtonSpacer} />
+      </ScrollView>
+
+      <View style={styles.footerContainer}>
+        <Pressable
+          onPress={submit}
+          disabled={stars < 1 || submitLoading}
+          style={[styles.submitButton, (stars < 1 || submitLoading) && styles.submitButtonDisabled]}
+        >
+          {submitLoading ? (
+            <ActivityIndicator size="small" color="#ffffff" />
+          ) : (
+            <Text style={[styles.submitButtonText, stars < 1 && styles.submitButtonTextDisabled]}>
+              Submit Rating
+            </Text>
+          )}
+        </Pressable>
+      </View>
+    </View>
   );
 }
 
@@ -739,21 +921,25 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: 24,
   },
+  ratingPageContainer: {
+    flex: 1,
+    backgroundColor: '#f8fafc',
+  },
   scrollContainer: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#f8fafc',
   },
   container: {
-    backgroundColor: '#ffffff',
-    padding: 24,
-    paddingTop: 60,
-    paddingBottom: 32,
+    backgroundColor: '#f8fafc',
+    padding: 20,
+    paddingTop: 140,
+    paddingBottom: 100,
   },
   homeContainer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#eff6ff',
+    backgroundColor: '#f0f4f8',
     padding: 24,
   },
   homeContent: {
@@ -764,15 +950,15 @@ const styles = StyleSheet.create({
     width: 96,
     height: 96,
     backgroundColor: '#2563eb',
-    borderRadius: 24,
+    borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
+    shadowColor: '#2563eb',
+    shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
+    shadowRadius: 16,
+    elevation: 12,
   },
   icon: {
     fontSize: 48,
@@ -800,12 +986,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#2563eb',
     paddingHorizontal: 40,
     paddingVertical: 20,
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
+    borderRadius: 20,
+    shadowColor: '#2563eb',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    elevation: 10,
     width: '100%',
     maxWidth: 320,
     alignItems: 'center',
@@ -829,22 +1015,41 @@ const styles = StyleSheet.create({
     fontSize: 48,
     color: '#10b981',
   },
+  headerContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#f8fafc',
+    paddingTop: 60,
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+    zIndex: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 8,
+  },
   ratingHeader: {
-    marginBottom: 24,
-    marginTop: 16,
+    marginBottom: 0,
   },
   ratingTitle: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#111827',
-    marginBottom: 4,
+    fontSize: 32,
+    fontWeight: '800',
+    color: '#0f172a',
+    marginBottom: 6,
+    letterSpacing: -0.5,
   },
   ratingSubtitle: {
-    fontSize: 14,
-    color: '#6b7280',
+    fontSize: 15,
+    color: '#64748b',
+    fontWeight: '500',
   },
   section: {
-    marginBottom: 24,
+    marginBottom: 28,
     width: '100%',
   },
   sectionTitle: {
@@ -857,29 +1062,44 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    paddingVertical: 8,
   },
   starButton: {
-    padding: 8,
+    padding: 10,
   },
   star: {
-    fontSize: 48,
-    color: '#d1d5db',
-    marginRight: 4,
+    fontSize: 52,
+    color: '#e2e8f0',
+    marginRight: 6,
+    textShadowColor: 'rgba(0, 0, 0, 0.1)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   starSelected: {
     color: '#fbbf24',
+    textShadowColor: 'rgba(251, 191, 36, 0.4)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
   },
   tagRatingRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 20,
-    paddingVertical: 8,
+    marginBottom: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 4,
+    borderRadius: 12,
+    backgroundColor: '#ffffff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 2,
   },
   tagLabel: {
     fontSize: 16,
-    fontWeight: '500',
-    color: '#374151',
+    fontWeight: '600',
+    color: '#1e293b',
     flex: 1,
   },
   tagStarRow: {
@@ -890,23 +1110,31 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   tagStar: {
-    fontSize: 28,
-    color: '#d1d5db',
-    marginRight: 2,
+    fontSize: 30,
+    color: '#e2e8f0',
+    marginRight: 3,
   },
   tagStarSelected: {
     color: '#fbbf24',
+    textShadowColor: 'rgba(251, 191, 36, 0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   input: {
-    backgroundColor: '#f9fafb',
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    borderRadius: 12,
-    padding: 16,
+    backgroundColor: '#ffffff',
+    borderWidth: 1.5,
+    borderColor: '#e2e8f0',
+    borderRadius: 16,
+    padding: 18,
     fontSize: 16,
-    color: '#111827',
-    minHeight: 100,
+    color: '#0f172a',
+    minHeight: 110,
     textAlignVertical: 'top',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 2,
   },
   charCount: {
     fontSize: 12,
@@ -914,18 +1142,37 @@ const styles = StyleSheet.create({
     marginTop: 8,
     textAlign: 'right',
   },
+  submitButtonSpacer: {
+    height: 20,
+  },
+  footerContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#f8fafc',
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 32,
+    borderTopWidth: 1,
+    borderTopColor: '#e2e8f0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 8,
+  },
   submitButton: {
     backgroundColor: '#2563eb',
     paddingHorizontal: 32,
-    paddingVertical: 20,
-    borderRadius: 12,
-    marginTop: 8,
-    marginBottom: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
+    paddingVertical: 22,
+    borderRadius: 16,
+    shadowColor: '#2563eb',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    elevation: 8,
+    width: '100%',
   },
   submitButtonDisabled: {
     backgroundColor: '#d1d5db',
@@ -942,13 +1189,13 @@ const styles = StyleSheet.create({
   button: {
     backgroundColor: '#2563eb',
     paddingHorizontal: 32,
-    paddingVertical: 16,
-    borderRadius: 12,
-    shadowColor: '#000',
+    paddingVertical: 18,
+    borderRadius: 16,
+    shadowColor: '#2563eb',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.3,
     shadowRadius: 8,
-    elevation: 4,
+    elevation: 6,
   },
   buttonText: {
     color: '#ffffff',
@@ -1032,17 +1279,22 @@ const styles = StyleSheet.create({
   regInput: {
     backgroundColor: '#ffffff',
     borderWidth: 2,
-    borderColor: '#d1d5db',
-    borderRadius: 12,
-    padding: 16,
+    borderColor: '#e2e8f0',
+    borderRadius: 16,
+    padding: 18,
     fontSize: 18,
-    color: '#111827',
+    color: '#0f172a',
     textAlign: 'center',
-    fontWeight: '600',
+    fontWeight: '700',
     letterSpacing: 2,
     marginBottom: 8,
     width: '100%',
     maxWidth: 320,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 3,
   },
   regInputError: {
     borderColor: '#ef4444',
@@ -1053,16 +1305,43 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 8,
   },
+  errorContainer: {
+    backgroundColor: '#fef2f2',
+    borderWidth: 1.5,
+    borderColor: '#fecaca',
+    borderRadius: 12,
+    padding: 14,
+    marginTop: 16,
+    marginBottom: 8,
+    maxWidth: 320,
+    width: '100%',
+    shadowColor: '#ef4444',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  dismissErrorButton: {
+    marginTop: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    alignSelf: 'center',
+  },
+  dismissErrorText: {
+    color: '#ef4444',
+    fontSize: 14,
+    fontWeight: '600',
+  },
   submitRegButton: {
     backgroundColor: '#2563eb',
     paddingHorizontal: 32,
-    paddingVertical: 14,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
+    paddingVertical: 16,
+    borderRadius: 16,
+    shadowColor: '#2563eb',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
     width: '100%',
     maxWidth: 320,
     alignItems: 'center',
@@ -1138,12 +1417,17 @@ const styles = StyleSheet.create({
     color: '#6b7280',
   },
   statsCard: {
-    backgroundColor: '#f9fafb',
-    borderRadius: 12,
-    padding: 20,
-    marginBottom: 16,
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 24,
+    marginBottom: 20,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: '#e2e8f0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 4,
   },
   statsCardTitle: {
     fontSize: 18,
