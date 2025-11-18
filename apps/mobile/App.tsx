@@ -53,6 +53,7 @@ export default function App() {
   const [vehicleRegNumber, setVehicleRegNumber] = useState<string>('');
   const [submitError, setSubmitError] = useState('');
   const [submitLoading, setSubmitLoading] = useState(false);
+  const [duplicateRatingError, setDuplicateRatingError] = useState(false);
 
   const queueKey = 'pending_ratings_v1';
 
@@ -67,9 +68,6 @@ export default function App() {
       // Filter out any ratings with invalid UUIDs
       const validRatings = payload.filter(r => {
         const isValid = isValidUUID(r.vehicle_id);
-        if (!isValid) {
-          console.warn('Filtered out queued rating with invalid vehicle_id:', r.vehicle_id);
-        }
         return isValid;
       });
       
@@ -88,13 +86,9 @@ export default function App() {
       const { error } = await supabase.from('rating').insert(cleanedRatings);
       if (!error) {
         await AsyncStorage.removeItem(queueKey);
-      } else {
-        // Error syncing - will retry on next app start or when user submits another rating
-        console.warn('Error syncing queued ratings:', error);
       }
     } catch (error) {
-      // If we can't read/write to storage or parse JSON, just log and continue
-      console.error('Error in syncQueuedRatings:', error);
+      // If we can't read/write to storage or parse JSON, just continue silently
     }
   }, []);
 
@@ -130,7 +124,6 @@ export default function App() {
           return gen;
         } catch (error) {
           // If storage fails, generate a temporary hash
-          console.warn('AsyncStorage error, using temporary device hash:', error);
           return Math.random().toString(36).slice(2) + Date.now().toString(36);
         }
       }
@@ -164,9 +157,7 @@ export default function App() {
         .eq('vehicle_id', vId)
         .maybeSingle();
 
-      if (viewError) {
-        console.warn('Error fetching view data (non-critical):', viewError);
-      }
+      // View data error is non-critical, continue without it
 
       // Fetch all ratings for this vehicle
       const { data: ratingsData, error: ratingsError } = await supabase
@@ -225,7 +216,6 @@ export default function App() {
         recentComments
       });
     } catch (error) {
-      console.error('Error fetching vehicle stats:', error);
       setScanError('Unable to load vehicle statistics. Please check your connection and try again.');
       setStats(null);
     } finally {
@@ -253,7 +243,6 @@ export default function App() {
     
     // Validate that scannedVehicleId is a valid UUID before proceeding
     if (!scannedVehicleId || !isValidUUID(scannedVehicleId)) {
-      console.warn('Invalid vehicle ID scanned:', scannedVehicleId);
       setScanError('Invalid QR code. Please scan a valid vehicle QR code.');
       setScanning(false);
       return;
@@ -279,14 +268,12 @@ export default function App() {
           }
         } else {
           // Vehicle not found - show error message
-          console.warn('Vehicle not found for ID:', scannedVehicleId);
           setScanError('Vehicle not found. This QR code may be invalid or the vehicle may have been removed.');
           setVehicleId(null);
           setRouteId(null);
           setVehicleRegNumber('');
         }
       } catch (err) {
-        console.error('Error fetching vehicle:', err);
         const errorMessage = err instanceof Error && err.message.includes('network')
           ? 'Network error. Please check your connection and try again.'
           : 'Unable to look up vehicle. Please try again.';
@@ -389,7 +376,6 @@ export default function App() {
       arr.push(r);
       await AsyncStorage.setItem(queueKey, JSON.stringify(arr));
     } catch (error) {
-      console.error('Error queuing rating:', error);
       // If we can't queue, we'll just lose this rating - better than crashing
     }
   };
@@ -458,11 +444,10 @@ export default function App() {
       
       let { error } = await supabase.from('rating').insert(insertPayload);
       
-      // If error is about missing tag_ratings column, log warning but don't retry
+      // If error is about missing tag_ratings column, retry without it
       // The column needs to be added to the database for tag ratings to work
       if (error && (error.code === 'PGRST204' || error.code === '42703') && 
           (error.message?.includes('tag_ratings') || error.message?.includes('column'))) {
-        console.warn('tag_ratings column not found. Please add it to the database. Falling back to tags array only.');
         // Remove tag_ratings and retry without it (ratings will still save, just without individual tag ratings)
         const retryPayload = { ...insertPayload };
         delete retryPayload.tag_ratings;
@@ -471,7 +456,19 @@ export default function App() {
       }
       
       if (error) {
-        console.error('Rating submission error:', error);
+        
+        // Handle duplicate rating constraint (user already rated this vehicle in this hour)
+        if (error.code === '23505' && error.message?.includes('uniq_rating_device_vehicle_hour')) {
+          setDuplicateRatingError(true);
+          setSubmitError('');
+          setSubmitLoading(false);
+          // Reset the form
+          setStars(0);
+          setTagRatings({});
+          setComment('');
+          return;
+        }
+        
         await enqueue(r);
         const errorMessage = error.message?.includes('network') || error.message?.includes('fetch') || error.code === 'PGRST301'
           ? 'No internet connection. Your rating has been saved and will be submitted automatically when you have a connection.'
@@ -484,7 +481,6 @@ export default function App() {
       // Success!
       success = true;
     } catch (err) {
-      console.error('Rating submission exception:', err);
       await enqueue(r);
       const errorMessage = err instanceof Error && (err.message.includes('network') || err.message.includes('fetch'))
         ? 'No internet connection. Your rating has been saved and will be submitted automatically when you have a connection.'
@@ -504,6 +500,7 @@ export default function App() {
       setVehicleId(null); 
       setRouteId(null);
       setSubmitError('');
+      setDuplicateRatingError(false);
       setThanks(true);
       setTimeout(() => setThanks(false), 1500);
     }
@@ -577,82 +574,93 @@ export default function App() {
   if (!vehicleId) {
     return (
       <View style={styles.homeContainer}>
-        <View style={styles.homeContent}>
-          <View style={styles.iconContainer}>
-            <Text style={styles.icon}>🚐</Text>
-          </View>
-          <Text style={styles.header}>RateMyRide</Text>
-          <Text style={styles.subtitle}>
-            Scan the QR code or enter the registration number to {viewMode === 'rate' ? 'rate' : 'view stats for'} this ride
-          </Text>
-          {scanError ? (
-            <View style={styles.errorContainer}>
-              <Text style={styles.errorText}>{scanError}</Text>
-              <Pressable
-                onPress={() => setScanError('')}
-                style={styles.dismissErrorButton}
-              >
-                <Text style={styles.dismissErrorText}>Dismiss</Text>
-              </Pressable>
-            </View>
-          ) : null}
-        </View>
-
-        <View style={styles.toggleContainer}>
-          <Text style={styles.toggleLabel}>Rate vehicle</Text>
-          <View style={{ marginHorizontal: 12 }}>
-            <Switch
-              value={viewMode === 'stats'}
-              onValueChange={(value) => setViewMode(value ? 'stats' : 'rate')}
-              trackColor={{ false: '#d1d5db', true: '#2563eb' }}
-              thumbColor="#ffffff"
-              ios_backgroundColor="#d1d5db"
-            />
-          </View>
-          <Text style={styles.toggleLabel}>View stats</Text>
-        </View>
-        
-        <Pressable
-          onPress={() => {
-            setScanError(''); // Clear error when starting new scan
-            setRegNumberError(''); // Clear reg number errors too
-            setScanning(true);
-          }}
-          style={styles.scanButton}
+        <ScrollView 
+          style={styles.homeScrollContainer}
+          contentContainerStyle={styles.homeScrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         >
-          <Text style={styles.scanButtonText}>📷 Scan QR Code</Text>
-        </Pressable>
+          <View style={styles.homeContent}>
+            <View style={styles.iconContainer}>
+              <Text style={styles.icon}>🚐</Text>
+            </View>
+            <Text style={styles.header}>RateMyRide</Text>
+            <Text style={styles.subtitle}>
+              Scan the QR code or enter the registration number to {viewMode === 'rate' ? 'rate' : 'view stats for'} this ride
+            </Text>
+            {scanError ? (
+              <View style={styles.errorContainer}>
+                <Text style={styles.errorText}>{scanError}</Text>
+                <Pressable
+                  onPress={() => setScanError('')}
+                  style={styles.dismissErrorButton}
+                >
+                  <Text style={styles.dismissErrorText}>Dismiss</Text>
+                </Pressable>
+              </View>
+            ) : null}
+          </View>
 
-        <View style={styles.divider}>
-          <View style={styles.dividerLine} />
-          <Text style={styles.dividerText}>OR</Text>
-          <View style={styles.dividerLine} />
-        </View>
-
-        <View style={styles.inputSection}>
-          <TextInput
-            placeholder="e.g., ABC1234"
-            value={regNumber}
-            onChangeText={(text) => {
-              setRegNumber(text.toUpperCase());
-              setRegNumberError('');
+          <View style={styles.toggleContainer}>
+            <Text style={styles.toggleLabel}>Rate vehicle</Text>
+            <View style={{ marginHorizontal: 12 }}>
+              <Switch
+                value={viewMode === 'stats'}
+                onValueChange={(value) => setViewMode(value ? 'stats' : 'rate')}
+                trackColor={{ false: '#d1d5db', true: '#2563eb' }}
+                thumbColor="#ffffff"
+                ios_backgroundColor="#d1d5db"
+              />
+            </View>
+            <Text style={styles.toggleLabel}>View stats</Text>
+          </View>
+          
+          <Pressable
+            onPress={() => {
+              setScanError(''); // Clear error when starting new scan
+              setRegNumberError(''); // Clear reg number errors too
+              setScanning(true);
             }}
-            style={[styles.regInput, regNumberError && styles.regInputError]}
-            placeholderTextColor="#9ca3af"
-            autoCapitalize="characters"
-            autoCorrect={false}
-          />
-          <Text style={styles.inputLabel}>Enter registration number</Text>
-          {regNumberError ? (
-            <Text style={styles.errorText}>{regNumberError}</Text>
-          ) : null}
+            style={styles.scanButton}
+          >
+            <Text style={styles.scanButtonText}>📷 Scan QR Code</Text>
+          </Pressable>
+
+          <View style={styles.divider}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>OR</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
+          <View style={styles.inputSection}>
+            <TextInput
+              placeholder="e.g., ABC1234"
+              value={regNumber}
+              onChangeText={(text) => {
+                setRegNumber(text.toUpperCase());
+                setRegNumberError('');
+              }}
+              style={[styles.regInput, regNumberError && styles.regInputError]}
+              placeholderTextColor="#9ca3af"
+              autoCapitalize="characters"
+              autoCorrect={false}
+            />
+            <Text style={styles.inputLabel}>Enter registration number</Text>
+            {regNumberError ? (
+              <Text style={styles.errorText}>{regNumberError}</Text>
+            ) : null}
+          </View>
+          <View style={styles.submitRegButtonSpacer} />
+        </ScrollView>
+
+        <View style={styles.homeFooterContainer}>
           <Pressable
             onPress={handleRegNumberSubmit}
             style={[styles.submitRegButton, !regNumber.trim() && styles.submitRegButtonDisabled]}
             disabled={!regNumber.trim()}
           >
             <Text style={[styles.submitRegButtonText, !regNumber.trim() && styles.submitRegButtonTextDisabled]}>
-              Submit
+              🔍 Search
             </Text>
           </Pressable>
         </View>
@@ -828,6 +836,18 @@ export default function App() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
+        {duplicateRatingError ? (
+          <DuplicateRatingMessage onDismiss={() => {
+            setDuplicateRatingError(false);
+            setVehicleId(null);
+            setRouteId(null);
+            setVehicleRegNumber('');
+            setStars(0);
+            setTagRatings({});
+            setComment('');
+          }} />
+        ) : null}
+
         <View style={styles.section}>
           <StarRow value={stars} onChange={setStars} />
         </View>
@@ -867,17 +887,17 @@ export default function App() {
           <Text style={styles.charCount}>{comment.length}/180</Text>
         </View>
 
-        {submitError ? (
-          <View style={styles.errorContainer}>
-            <Text style={styles.errorText}>{submitError}</Text>
-            <Pressable
-              onPress={() => setSubmitError('')}
-              style={styles.dismissErrorButton}
-            >
-              <Text style={styles.dismissErrorText}>Dismiss</Text>
-            </Pressable>
-          </View>
-        ) : null}
+      {submitError ? (
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>{submitError}</Text>
+          <Pressable
+            onPress={() => setSubmitError('')}
+            style={styles.dismissErrorButton}
+          >
+            <Text style={styles.dismissErrorText}>Dismiss</Text>
+          </Pressable>
+        </View>
+      ) : null}
 
         <View style={styles.submitButtonSpacer} />
       </ScrollView>
@@ -913,6 +933,28 @@ function StarRow({ value, onChange }: { value: number; onChange: (n: number) => 
   );
 }
 
+function DuplicateRatingMessage({ onDismiss }: { onDismiss: () => void }) {
+  return (
+    <View style={styles.duplicateRatingContainer}>
+      <View style={styles.duplicateRatingIcon}>
+        <Text style={styles.duplicateRatingIconText}>✓</Text>
+      </View>
+      <View style={styles.duplicateRatingContent}>
+        <Text style={styles.duplicateRatingTitle}>Thank you for your feedback!</Text>
+        <Text style={styles.duplicateRatingMessage}>
+          You've already rated this vehicle. You can submit another rating in an hour.
+        </Text>
+      </View>
+      <Pressable
+        onPress={onDismiss}
+        style={styles.duplicateRatingDismiss}
+      >
+        <Text style={styles.duplicateRatingDismissText}>Got it</Text>
+      </Pressable>
+    </View>
+  );
+}
+
 
 const styles = StyleSheet.create({
   center: {
@@ -937,10 +979,17 @@ const styles = StyleSheet.create({
   },
   homeContainer: {
     flex: 1,
+    backgroundColor: '#f0f4f8',
+  },
+  homeScrollContainer: {
+    flex: 1,
+  },
+  homeScrollContent: {
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#f0f4f8',
     padding: 24,
+    paddingBottom: 100,
+    minHeight: '100%',
   },
   homeContent: {
     alignItems: 'center',
@@ -1321,6 +1370,63 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
+  duplicateRatingContainer: {
+    backgroundColor: '#f0fdf4',
+    borderWidth: 1.5,
+    borderColor: '#bbf7d0',
+    borderRadius: 16,
+    padding: 20,
+    marginTop: 20,
+    marginBottom: 20,
+    width: '100%',
+    shadowColor: '#10b981',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 4,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  duplicateRatingIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#d1fae5',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+    flexShrink: 0,
+  },
+  duplicateRatingIconText: {
+    fontSize: 24,
+    color: '#10b981',
+    fontWeight: '700',
+  },
+  duplicateRatingContent: {
+    flex: 1,
+  },
+  duplicateRatingTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#065f46',
+    marginBottom: 6,
+  },
+  duplicateRatingMessage: {
+    fontSize: 14,
+    color: '#047857',
+    lineHeight: 20,
+  },
+  duplicateRatingDismiss: {
+    marginLeft: 12,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    flexShrink: 0,
+  },
+  duplicateRatingDismissText: {
+    color: '#10b981',
+    fontSize: 14,
+    fontWeight: '600',
+  },
   dismissErrorButton: {
     marginTop: 8,
     paddingVertical: 6,
@@ -1332,28 +1438,48 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
+  submitRegButtonSpacer: {
+    height: 20,
+  },
+  homeFooterContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#f0f4f8',
+    paddingHorizontal: 24,
+    paddingTop: 12,
+    paddingBottom: 32,
+    borderTopWidth: 1,
+    borderTopColor: '#e2e8f0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 8,
+    alignItems: 'center',
+  },
   submitRegButton: {
     backgroundColor: '#2563eb',
-    paddingHorizontal: 32,
-    paddingVertical: 16,
-    borderRadius: 16,
+    paddingHorizontal: 40,
+    paddingVertical: 20,
+    borderRadius: 20,
     shadowColor: '#2563eb',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    elevation: 10,
     width: '100%',
     maxWidth: 320,
     alignItems: 'center',
-    marginTop: 16,
   },
   submitRegButtonDisabled: {
     backgroundColor: '#d1d5db',
   },
   submitRegButtonText: {
     color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 18,
+    fontWeight: '700',
     textAlign: 'center',
   },
   submitRegButtonTextDisabled: {

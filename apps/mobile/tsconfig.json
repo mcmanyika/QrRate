@@ -6,7 +6,7 @@
       "dom"
     ],
     "target": "es2017",
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "strict": true,
     "noEmit": true,
     "skipLibCheck": true
