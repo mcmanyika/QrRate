@@ -220,19 +220,6 @@ export default function Home() {
           <p className="text-gray-400 text-sm mb-6">
             © {new Date().getFullYear()} RateMyRide. All rights reserved.
           </p>
-          <div className="flex justify-center gap-6">
-            <a href="#" className="text-gray-400 hover:text-white transition-colors">
-              Privacy Policy
-            </a>
-            <span className="text-gray-600">•</span>
-            <a href="#" className="text-gray-400 hover:text-white transition-colors">
-              Terms of Service
-            </a>
-            <span className="text-gray-600">•</span>
-            <a href="#" className="text-gray-400 hover:text-white transition-colors">
-              Contact
-            </a>
-          </div>
         </div>
       </footer>
     </main>
