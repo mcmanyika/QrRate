@@ -16,7 +16,8 @@
       },
       "env": {
         "EXPO_PUBLIC_SUPABASE_URL": "https://ghinjhboerdgpnugraks.supabase.co",
-        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdoaW5qaGJvZXJkZ3BudWdyYWtzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIzNTUwMDQsImV4cCI6MjA3NzkzMTAwNH0.szjDBbJCXljr_aBItPVk76bWfWoeEIgLZ91guceu884"
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdoaW5qaGJvZXJkZ3BudWdyYWtzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIzNTUwMDQsImV4cCI6MjA3NzkzMTAwNH0.szjDBbJCXljr_aBItPVk76bWfWoeEIgLZ91guceu884",
+        "EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY": "pk_test_51MJe2UHXrdQYsUmnzifIRrn1G2LhHf61F8KR7iNtaoQPxZ7pqsiRX0sjsjZ0IZUvQPzcOEuNRcHJzt9t4zXJrs2p00BILwshza"
       }
     }
   }

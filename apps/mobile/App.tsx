@@ -1,8 +1,19 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { StyleSheet, Text, View, TextInput, TouchableOpacity, Pressable, ScrollView, Switch, ActivityIndicator } from 'react-native';
+import { StyleSheet, Text, View, TextInput, TouchableOpacity, Pressable, ScrollView, Switch, ActivityIndicator, LogBox } from 'react-native';
 import { CameraView, useCameraPermissions, BarcodeScanningResult } from 'expo-camera';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient } from '@supabase/supabase-js';
+// Stripe/Tipping disabled - imports removed to avoid build issues
+// To re-enable: uncomment imports and add @stripe/stripe-react-native to package.json
+// import { StripeProvider } from '@stripe/stripe-react-native';
+// import { TipPrompt, getStripePublishableKey } from './modules/tipping';
+
+// Suppress harmless Stripe NativeEventEmitter warnings
+LogBox.ignoreLogs([
+  'new NativeEventEmitter()',
+  'addListener',
+  'removeListeners',
+]);
 
 // Configure Supabase via app.json extra or env – replace placeholders when deploying
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL as string;
@@ -35,7 +46,7 @@ type VehicleStats = {
   recentComments: Array<{ comment: string; stars: number; created_at: string }>;
 };
 
-export default function App() {
+function AppContent() {
   const [permission, requestPermission] = useCameraPermissions();
   const [scanning, setScanning] = useState(false);
   const [viewMode, setViewMode] = useState<'rate' | 'stats'>('rate');
@@ -54,6 +65,9 @@ export default function App() {
   const [submitError, setSubmitError] = useState('');
   const [submitLoading, setSubmitLoading] = useState(false);
   const [duplicateRatingError, setDuplicateRatingError] = useState(false);
+  const [showTipPrompt, setShowTipPrompt] = useState(false);
+  const [lastRatingId, setLastRatingId] = useState<string | null>(null);
+  const [tipDeviceHash, setTipDeviceHash] = useState<string | null>(null);
 
   const queueKey = 'pending_ratings_v1';
 
@@ -442,7 +456,7 @@ export default function App() {
         insertPayload.tag_ratings = tagRatings;
       }
       
-      let { error } = await supabase.from('rating').insert(insertPayload);
+      let { data: ratingData, error } = await supabase.from('rating').insert(insertPayload).select('id').single();
       
       // If error is about missing tag_ratings column, retry without it
       // The column needs to be added to the database for tag ratings to work
@@ -451,8 +465,9 @@ export default function App() {
         // Remove tag_ratings and retry without it (ratings will still save, just without individual tag ratings)
         const retryPayload = { ...insertPayload };
         delete retryPayload.tag_ratings;
-        const retryResult = await supabase.from('rating').insert(retryPayload);
+        const retryResult = await supabase.from('rating').insert(retryPayload).select('id').single();
         error = retryResult.error;
+        ratingData = retryResult.data;
       }
       
       if (error) {
@@ -492,18 +507,63 @@ export default function App() {
       setSubmitLoading(false);
     }
     
-    // Only show thanks screen if submission was successful
+    // Only show tip prompt if submission was successful
     if (success) {
-      setStars(0); 
-      setTagRatings({}); 
-      setComment(''); 
-      setVehicleId(null); 
-      setRouteId(null);
       setSubmitError('');
       setDuplicateRatingError(false);
+      // Tipping disabled for now - go straight to thanks screen
+      setStars(0); 
+      setTagRatings({}); 
+      setComment('');
+      setVehicleId(null);
+      setRouteId(null);
       setThanks(true);
       setTimeout(() => setThanks(false), 1500);
+      
+      // Tipping code (disabled):
+      // setLastRatingId(ratingData?.id || null);
+      // try {
+      //   const hash = await deviceHash.get();
+      //   setTipDeviceHash(hash);
+      //   setShowTipPrompt(true);
+      // } catch (error) {
+      //   setStars(0); 
+      //   setTagRatings({}); 
+      //   setComment('');
+      //   setVehicleId(null);
+      //   setRouteId(null);
+      //   setThanks(true);
+      //   setTimeout(() => setThanks(false), 1500);
+      // }
     }
+  };
+
+  const handleTipComplete = () => {
+    setShowTipPrompt(false);
+    setLastRatingId(null);
+    setTipDeviceHash(null);
+    // Clear form fields after tip is complete
+    setStars(0); 
+    setTagRatings({}); 
+    setComment('');
+    setVehicleId(null);
+    setRouteId(null);
+    setThanks(true);
+    setTimeout(() => setThanks(false), 1500);
+  };
+
+  const handleTipSkip = () => {
+    setShowTipPrompt(false);
+    setLastRatingId(null);
+    setTipDeviceHash(null);
+    // Clear form fields after tip is skipped
+    setStars(0); 
+    setTagRatings({}); 
+    setComment('');
+    setVehicleId(null);
+    setRouteId(null);
+    setThanks(true);
+    setTimeout(() => setThanks(false), 1500);
   };
 
   if (thanks) {
@@ -917,8 +977,36 @@ export default function App() {
           )}
         </Pressable>
       </View>
+
+      {/* Tipping disabled for now */}
+      {false && showTipPrompt && vehicleId && tipDeviceHash && (
+        <TipPrompt
+          vehicleId={vehicleId}
+          ratingId={lastRatingId}
+          routeId={routeId}
+          vehicleRegNumber={vehicleRegNumber}
+          deviceHash={tipDeviceHash}
+          onComplete={handleTipComplete}
+          onSkip={handleTipSkip}
+        />
+      )}
     </View>
   );
+}
+
+export default function App() {
+  // Tipping disabled - Stripe not needed
+  // If re-enabling tipping, uncomment below:
+  // const stripePublishableKey = getStripePublishableKey?.();
+  // if (StripeProvider && stripePublishableKey) {
+  //   return (
+  //     <StripeProvider publishableKey={stripePublishableKey}>
+  //       <AppContent />
+  //     </StripeProvider>
+  //   );
+  // }
+  
+  return <AppContent />;
 }
 
 function StarRow({ value, onChange }: { value: number; onChange: (n: number) => void }) {
