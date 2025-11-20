@@ -1,3 +1,7 @@
+'use client'
+
+import { useCallback } from 'react'
+
 // Supabase storage URL for Android APK
 // Update BUCKET_NAME and FILE_PATH with your actual bucket name and file path
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://ghinjhboerdgpnugraks.supabase.co';
@@ -6,6 +10,49 @@ const APK_FILE_PATH = process.env.NEXT_PUBLIC_APK_FILE_PATH || 'RateMyRide';
 const ANDROID_DOWNLOAD_URL = `${SUPABASE_URL}/storage/v1/object/public/${APK_BUCKET_NAME}/${APK_FILE_PATH}`;
 
 export default function Home() {
+  // Track download and then redirect to download URL
+  const trackDownload = useCallback(async (platform: 'ios' | 'android', downloadUrl: string) => {
+    // Track download via API route (captures IP address)
+    fetch('/api/track-download', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ platform }),
+    })
+      .then(async (response) => {
+        if (!response.ok) {
+          const error = await response.json();
+          console.error('Failed to track download:', error);
+        } else {
+          const data = await response.json();
+          console.log('Download tracked successfully:', data);
+        }
+      })
+      .catch((error) => {
+        // Log error but don't block download
+        console.error('Failed to track download:', error);
+      });
+
+    // Immediately redirect to download URL
+    if (platform === 'android') {
+      window.location.href = downloadUrl;
+    } else {
+      // iOS download - placeholder for now
+      // Replace with actual App Store URL when available
+      window.open('#', '_blank');
+    }
+  }, []);
+
+  const handleIOSDownload = useCallback((e: React.MouseEvent<HTMLAnchorElement>) => {
+    e.preventDefault();
+    trackDownload('ios', '#');
+  }, [trackDownload]);
+
+  const handleAndroidDownload = useCallback((e: React.MouseEvent<HTMLAnchorElement>) => {
+    e.preventDefault();
+    trackDownload('android', ANDROID_DOWNLOAD_URL);
+  }, [trackDownload]);
   return (
     <main className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 relative overflow-hidden">
       {/* Animated background elements */}
@@ -31,6 +78,7 @@ export default function Home() {
           <div className="flex flex-col sm:flex-row gap-5 justify-center items-center animate-scale-in" style={{ animationDelay: '0.6s' }}>
             <a
               href="#"
+              onClick={handleIOSDownload}
               className="group relative px-10 py-5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-2xl font-semibold text-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-300 shadow-2xl hover:shadow-blue-500/50 hover:scale-105 transform tracking-tight"
             >
               <span className="relative z-10 flex items-center gap-3">
@@ -42,7 +90,7 @@ export default function Home() {
             </a>
             <a
               href={ANDROID_DOWNLOAD_URL}
-              download
+              onClick={handleAndroidDownload}
               className="group relative px-10 py-5 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-2xl font-semibold text-lg hover:from-green-700 hover:to-emerald-700 transition-all duration-300 shadow-2xl hover:shadow-green-500/50 hover:scale-105 transform tracking-tight"
             >
               <span className="relative z-10 flex items-center gap-3">
@@ -182,6 +230,7 @@ export default function Home() {
             <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
               <a
                 href="#"
+                onClick={handleIOSDownload}
                 className="group flex items-center gap-4 px-10 py-5 bg-gradient-to-r from-gray-900 to-black text-white rounded-2xl font-semibold text-lg hover:from-gray-800 hover:to-gray-900 transition-all duration-300 shadow-2xl hover:shadow-gray-900/50 hover:scale-105 transform tracking-tight"
               >
                 <svg className="w-8 h-8 group-hover:scale-110 transition-transform" viewBox="0 0 24 24" fill="currentColor">
@@ -194,7 +243,7 @@ export default function Home() {
               </a>
               <a
                 href={ANDROID_DOWNLOAD_URL}
-                download
+                onClick={handleAndroidDownload}
                 className="group flex items-center gap-4 px-10 py-5 bg-gradient-to-r from-gray-900 to-black text-white rounded-2xl font-semibold text-lg hover:from-gray-800 hover:to-gray-900 transition-all duration-300 shadow-2xl hover:shadow-gray-900/50 hover:scale-105 transform tracking-tight"
               >
                 <svg className="w-8 h-8 group-hover:scale-110 transition-transform" viewBox="0 0 24 24" fill="currentColor">
