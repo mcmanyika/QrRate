@@ -70,10 +70,10 @@ export default function Home() {
             RateMyRide
           </h1>
           <p className="text-2xl md:text-3xl font-semibold text-gray-800 mb-6 animate-slide-up tracking-tight" style={{ animationDelay: '0.2s' }}>
-            Rate your kombi ride experience
+            Rate your ride experience
           </p>
           <p className="text-lg md:text-xl text-gray-600 mb-8 max-w-2xl mx-auto leading-tight tracking-tight animate-slide-up" style={{ animationDelay: '0.4s' }}>
-            Scan QR codes in kombis to instantly rate your ride. Help others make informed decisions and support drivers.
+            Scan QR codes in vehicles to instantly rate your ride. Help others make informed decisions and support drivers.
           </p>
           <div className="flex flex-col sm:flex-row gap-5 justify-center items-center animate-scale-in" style={{ animationDelay: '0.6s' }}>
             <a
@@ -119,7 +119,7 @@ export default function Home() {
                 QR Code Scanning
               </h3>
               <p className="text-gray-600 leading-tight tracking-tight">
-                Scan QR codes in kombis to rate instantly
+                Scan QR codes in vehicles to rate instantly
               </p>
             </div>
           </div>
@@ -181,7 +181,7 @@ export default function Home() {
                 Scan or Search
               </h3>
               <p className="text-gray-600 leading-tight tracking-tight">
-                Scan the QR code inside the kombi or enter the registration number
+                Scan the QR code inside the vehicle or enter the registration number
               </p>
             </div>
             <div className="group relative text-center">
@@ -225,7 +225,7 @@ export default function Home() {
               Download the App
             </h2>
             <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto leading-tight tracking-tight">
-              Get started today and help build a better kombi experience for everyone
+              Get started today and help build a better ride experience for everyone
             </p>
             <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
               <a

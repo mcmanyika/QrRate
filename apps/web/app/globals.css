@@ -74,6 +74,6 @@
 }
 
 .gradient-text {
-  @apply bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-purple-600 to-blue-800 tracking-tight;
+  @apply text-gray-900 tracking-tight;
 }
 
