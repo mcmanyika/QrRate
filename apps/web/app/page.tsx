@@ -2,12 +2,8 @@
 
 import { useCallback } from 'react'
 
-// Supabase storage URL for Android APK
-// Update BUCKET_NAME and FILE_PATH with your actual bucket name and file path
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://ghinjhboerdgpnugraks.supabase.co';
-const APK_BUCKET_NAME = process.env.NEXT_PUBLIC_APK_BUCKET_NAME || 'apps';
-const APK_FILE_PATH = process.env.NEXT_PUBLIC_APK_FILE_PATH || 'RateMyRide';
-const ANDROID_DOWNLOAD_URL = `${SUPABASE_URL}/storage/v1/object/public/${APK_BUCKET_NAME}/${APK_FILE_PATH}`;
+// Android APK download URL
+const ANDROID_DOWNLOAD_URL = 'https://expo.dev/artifacts/eas/r9xrb8NjQebnsKmyjtgQGW.apk';
 
 export default function Home() {
   // Track download and then redirect to download URL
@@ -269,6 +265,14 @@ export default function Home() {
           <p className="text-gray-400 text-sm mb-6">
             © {new Date().getFullYear()} RateMyRide. All rights reserved.
           </p>
+          <div className="mt-4">
+            <a
+              href="/auth/login"
+              className="text-blue-400 hover:text-blue-300 text-sm"
+            >
+              Transporter Login
+            </a>
+          </div>
         </div>
       </footer>
     </main>
