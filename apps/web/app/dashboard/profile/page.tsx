@@ -71,23 +71,23 @@ export default function ProfilePage() {
 
   return (
     <div>
-      <h1 className="text-3xl font-bold text-gray-900 mb-6">Profile</h1>
+      <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-6">Profile</h1>
 
-      <div className="bg-white shadow rounded-lg p-6 max-w-2xl">
+      <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6 max-w-2xl">
         {!editing ? (
           <div>
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700">Name</label>
-              <p className="mt-1 text-gray-900">{profile.name}</p>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Name</label>
+              <p className="mt-1 text-gray-900 dark:text-gray-100">{profile.name}</p>
             </div>
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700">Email</label>
-              <p className="mt-1 text-gray-900">{profile.email}</p>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Email</label>
+              <p className="mt-1 text-gray-900 dark:text-gray-100">{profile.email}</p>
             </div>
             {profile.phone && (
               <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700">Phone</label>
-                <p className="mt-1 text-gray-900">{profile.phone}</p>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Phone</label>
+                <p className="mt-1 text-gray-900 dark:text-gray-100">{profile.phone}</p>
               </div>
             )}
             <button
@@ -100,30 +100,30 @@ export default function ProfilePage() {
         ) : (
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name</label>
               <input
                 type="text"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-gray-100"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email</label>
               <input
                 type="email"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-gray-100"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Phone</label>
               <input
                 type="tel"
                 value={formData.phone}
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-gray-100"
               />
             </div>
             <div className="flex gap-2">

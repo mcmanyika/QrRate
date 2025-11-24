@@ -50,7 +50,7 @@ export default function Home() {
     trackDownload('android', ANDROID_DOWNLOAD_URL);
   }, [trackDownload]);
   return (
-    <main className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 relative overflow-hidden">
+    <main className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 relative overflow-hidden transition-colors duration-200">
       {/* Animated background elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-20 left-10 w-72 h-72 bg-blue-200 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-float"></div>
@@ -65,10 +65,10 @@ export default function Home() {
           <h1 className="text-5xl md:text-7xl font-extrabold mb-6 gradient-text animate-slide-up tracking-tight">
             RateMyRide
           </h1>
-          <p className="text-2xl md:text-3xl font-semibold text-gray-800 mb-6 animate-slide-up tracking-tight" style={{ animationDelay: '0.2s' }}>
+          <p className="text-2xl md:text-3xl font-semibold text-gray-800 dark:text-gray-200 mb-6 animate-slide-up tracking-tight" style={{ animationDelay: '0.2s' }}>
             Rate your ride experience
           </p>
-          <p className="text-lg md:text-xl text-gray-600 mb-8 max-w-2xl mx-auto leading-tight tracking-tight animate-slide-up" style={{ animationDelay: '0.4s' }}>
+          <p className="text-lg md:text-xl text-gray-600 dark:text-gray-300 mb-8 max-w-2xl mx-auto leading-tight tracking-tight animate-slide-up" style={{ animationDelay: '0.4s' }}>
             Scan QR codes in vehicles to instantly rate your ride. Help others make informed decisions and support drivers.
           </p>
           <div className="flex flex-col sm:flex-row gap-5 justify-center items-center animate-scale-in" style={{ animationDelay: '0.6s' }}>
@@ -105,52 +105,52 @@ export default function Home() {
         <h2 className="text-4xl md:text-5xl font-extrabold text-center mb-4 gradient-text tracking-tight">
           Key Features
         </h2>
-        <p className="text-center text-gray-600 mb-10 text-lg tracking-tight leading-tight">Everything you need for a better ride experience</p>
+        <p className="text-center text-gray-600 dark:text-gray-300 mb-10 text-lg tracking-tight leading-tight">Everything you need for a better ride experience</p>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-7xl mx-auto">
-          <div className="group relative text-center p-8 rounded-3xl bg-white/80 backdrop-blur-sm border border-gray-200 hover:border-blue-300 hover:shadow-2xl hover:shadow-blue-500/20 transition-all duration-300 hover:-translate-y-2">
+          <div className="group relative text-center p-8 rounded-3xl bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600 hover:shadow-2xl hover:shadow-blue-500/20 transition-all duration-300 hover:-translate-y-2">
             <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-transparent rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
             <div className="relative">
               <div className="text-5xl mb-6 transform group-hover:scale-110 transition-transform duration-300">📷</div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3 tracking-tight">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-3 tracking-tight">
                 QR Code Scanning
               </h3>
-              <p className="text-gray-600 leading-tight tracking-tight">
+              <p className="text-gray-600 dark:text-gray-300 leading-tight tracking-tight">
                 Scan QR codes in vehicles to rate instantly
               </p>
             </div>
           </div>
-          <div className="group relative text-center p-8 rounded-3xl bg-white/80 backdrop-blur-sm border border-gray-200 hover:border-green-300 hover:shadow-2xl hover:shadow-green-500/20 transition-all duration-300 hover:-translate-y-2">
+          <div className="group relative text-center p-8 rounded-3xl bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border border-gray-200 dark:border-gray-700 hover:border-green-300 dark:hover:border-green-600 hover:shadow-2xl hover:shadow-green-500/20 transition-all duration-300 hover:-translate-y-2">
             <div className="absolute inset-0 bg-gradient-to-br from-green-500/10 to-transparent rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
             <div className="relative">
               <div className="text-5xl mb-6 transform group-hover:scale-110 transition-transform duration-300">⭐</div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3 tracking-tight">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-3 tracking-tight">
                 Rating System
               </h3>
-              <p className="text-gray-600 leading-tight tracking-tight">
+              <p className="text-gray-600 dark:text-gray-300 leading-tight tracking-tight">
                 Rate cleanliness, safety, friendliness, and punctuality
               </p>
             </div>
           </div>
-          <div className="group relative text-center p-8 rounded-3xl bg-white/80 backdrop-blur-sm border border-gray-200 hover:border-purple-300 hover:shadow-2xl hover:shadow-purple-500/20 transition-all duration-300 hover:-translate-y-2">
+          <div className="group relative text-center p-8 rounded-3xl bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border border-gray-200 dark:border-gray-700 hover:border-purple-300 dark:hover:border-purple-600 hover:shadow-2xl hover:shadow-purple-500/20 transition-all duration-300 hover:-translate-y-2">
             <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 to-transparent rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
             <div className="relative">
               <div className="text-5xl mb-6 transform group-hover:scale-110 transition-transform duration-300">📊</div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3 tracking-tight">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-3 tracking-tight">
                 View Stats
               </h3>
-              <p className="text-gray-600 leading-tight tracking-tight">
+              <p className="text-gray-600 dark:text-gray-300 leading-tight tracking-tight">
                 See ratings and reviews before you ride
               </p>
             </div>
           </div>
-          <div className="group relative text-center p-8 rounded-3xl bg-white/80 backdrop-blur-sm border border-gray-200 hover:border-yellow-300 hover:shadow-2xl hover:shadow-yellow-500/20 transition-all duration-300 hover:-translate-y-2">
+          <div className="group relative text-center p-8 rounded-3xl bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border border-gray-200 dark:border-gray-700 hover:border-yellow-300 dark:hover:border-yellow-600 hover:shadow-2xl hover:shadow-yellow-500/20 transition-all duration-300 hover:-translate-y-2">
             <div className="absolute inset-0 bg-gradient-to-br from-yellow-500/10 to-transparent rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
             <div className="relative">
               <div className="text-5xl mb-6 transform group-hover:scale-110 transition-transform duration-300">💝</div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3 tracking-tight">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-3 tracking-tight">
                 Tipping
               </h3>
-              <p className="text-gray-600 leading-tight tracking-tight">
+              <p className="text-gray-600 dark:text-gray-300 leading-tight tracking-tight">
                 Support drivers with tips
               </p>
             </div>
@@ -159,11 +159,11 @@ export default function Home() {
       </section>
 
       {/* How It Works Section */}
-      <section className="container mx-auto px-4 py-12 md:py-16 relative z-10 bg-gradient-to-b from-white to-gray-50/50">
-        <h2 className="text-4xl md:text-5xl font-extrabold text-center mb-4 gradient-text tracking-tight">
+      <section className="container mx-auto px-4 py-12 md:py-16 relative z-10 bg-gradient-to-b from-white to-gray-50/50 dark:from-gray-800 dark:to-gray-900">
+        <h2 className="text-4xl md:text-5xl font-extrabold text-center mb-4 gradient-text dark:text-gray-100 tracking-tight">
           How It Works
         </h2>
-        <p className="text-center text-gray-600 mb-10 text-lg tracking-tight leading-tight">Get started in three simple steps</p>
+        <p className="text-center text-gray-600 dark:text-gray-300 mb-10 text-lg tracking-tight leading-tight">Get started in three simple steps</p>
         <div className="max-w-5xl mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-12">
             <div className="group relative text-center">
@@ -173,10 +173,10 @@ export default function Home() {
                   1
                 </div>
               </div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-3 tracking-tight">
+              <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-3 tracking-tight">
                 Scan or Search
               </h3>
-              <p className="text-gray-600 leading-tight tracking-tight">
+              <p className="text-gray-600 dark:text-gray-300 leading-tight tracking-tight">
                 Scan the QR code inside the vehicle or enter the registration number
               </p>
             </div>
@@ -187,10 +187,10 @@ export default function Home() {
                   2
                 </div>
               </div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-3 tracking-tight">
+              <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-3 tracking-tight">
                 Rate Your Experience
               </h3>
-              <p className="text-gray-600 leading-tight tracking-tight">
+              <p className="text-gray-600 dark:text-gray-300 leading-tight tracking-tight">
                 Rate cleanliness, safety, friendliness, and punctuality with stars
               </p>
             </div>
@@ -201,10 +201,10 @@ export default function Home() {
                   3
                 </div>
               </div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-3 tracking-tight">
+              <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-3 tracking-tight">
                 Share & Support
               </h3>
-              <p className="text-gray-600 leading-tight tracking-tight">
+              <p className="text-gray-600 dark:text-gray-300 leading-tight tracking-tight">
                 Your rating helps others, and you can optionally tip the driver
               </p>
             </div>
@@ -216,11 +216,11 @@ export default function Home() {
       <section className="container mx-auto px-4 py-12 md:py-16 relative z-10">
         <div className="max-w-5xl mx-auto text-center relative">
           <div className="absolute inset-0 bg-gradient-to-r from-blue-600/20 via-purple-600/20 to-pink-600/20 rounded-3xl blur-3xl"></div>
-          <div className="relative bg-white/90 backdrop-blur-md rounded-3xl p-12 md:p-16 border border-gray-200 shadow-2xl">
-            <h2 className="text-4xl md:text-5xl font-extrabold mb-4 gradient-text tracking-tight">
+          <div className="relative bg-white/90 dark:bg-gray-800/90 backdrop-blur-md rounded-3xl p-12 md:p-16 border border-gray-200 dark:border-gray-700 shadow-2xl">
+            <h2 className="text-4xl md:text-5xl font-extrabold mb-4 gradient-text dark:text-gray-100 tracking-tight">
               Download the App
             </h2>
-            <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto leading-tight tracking-tight">
+            <p className="text-xl text-gray-600 dark:text-gray-300 mb-8 max-w-2xl mx-auto leading-tight tracking-tight">
               Get started today and help build a better ride experience for everyone
             </p>
             <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">

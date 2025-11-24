@@ -15,23 +15,23 @@ export default function RatingCard({ rating }: RatingCardProps) {
   const stars = Array.from({ length: 5 }, (_, i) => i < rating.stars)
 
   return (
-    <div className="bg-white shadow rounded-lg p-6">
+    <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
       <div className="flex items-start justify-between">
         <div className="flex-1">
           <div className="flex items-center mb-2">
             <div className="flex">
               {stars.map((filled, i) => (
-                <span key={i} className="text-yellow-400 text-xl">
+                <span key={i} className="text-yellow-400 dark:text-yellow-500 text-xl">
                   {filled ? '★' : '☆'}
                 </span>
               ))}
             </div>
-            <span className="ml-2 text-sm text-gray-500">
+            <span className="ml-2 text-sm text-gray-500 dark:text-gray-400">
               {new Date(rating.created_at).toLocaleDateString()}
             </span>
           </div>
           {rating.vehicle && (
-            <p className="text-sm text-gray-600 mb-2">
+            <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">
               Vehicle: {rating.vehicle.reg_number}
             </p>
           )}

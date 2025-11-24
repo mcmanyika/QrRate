@@ -165,6 +165,40 @@ left join route rte on rte.id = v.route_id
 left join tip t on t.vehicle_id = v.id
 group by v.id, v.reg_number, rte.name;
 
+-- Service Provider tables (for transporter module)
+create table if not exists service_provider (
+  id uuid primary key default gen_random_uuid(),
+  transporter_id uuid not null references transporter(id) on delete cascade,
+  name text not null,
+  phone text,
+  email text,
+  service_type text not null check (service_type in ('maintenance', 'fuel_supplier', 'general')),
+  address text,
+  contact_person text,
+  is_active boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists vehicle_service_provider (
+  id uuid primary key default gen_random_uuid(),
+  vehicle_id uuid not null references vehicle(id) on delete cascade,
+  service_provider_id uuid not null references service_provider(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  unique(vehicle_id, service_provider_id)
+);
+
+-- Service Provider indexes
+create index if not exists idx_service_provider_transporter_id on service_provider(transporter_id);
+create index if not exists idx_service_provider_service_type on service_provider(service_type);
+create index if not exists idx_service_provider_is_active on service_provider(is_active) where is_active = true;
+create index if not exists idx_vehicle_service_provider_vehicle_id on vehicle_service_provider(vehicle_id);
+create index if not exists idx_vehicle_service_provider_service_provider_id on vehicle_service_provider(service_provider_id);
+
+-- Service Provider RLS
+alter table service_provider enable row level security;
+alter table vehicle_service_provider enable row level security;
+
 -- Helpers
 comment on column rating.device_hash is 'Opaque per-install hash used to rate-limit; no PII.';
 comment on column rating.tag_ratings is 'JSON object mapping tag names to star ratings (1-5). Example: {"Cleanliness": 4, "Driving safety": 5}';
@@ -172,5 +206,7 @@ comment on table tip is 'Stores tip transactions processed through Stripe';
 comment on column tip.amount_cents is 'Tip amount in cents (e.g., 500 = $5.00)';
 comment on column tip.platform_fee_cents is 'Platform fee deducted from tip amount';
 comment on column tip.operator_amount_cents is 'Amount that goes to operator/driver after platform fee';
+comment on table service_provider is 'Service providers (maintenance, fuel suppliers, general services) managed by transporters';
+comment on table vehicle_service_provider is 'Junction table linking vehicles to service providers';
 
 

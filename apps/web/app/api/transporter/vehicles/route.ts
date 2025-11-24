@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
     // Get paginated data
     const { data, error } = await supabase
       .from('vehicle')
-      .select('*, route:route_id(*)')
+      .select('*, route:route_id(*), driver:driver_staff_id(*), conductor:conductor_staff_id(*)')
       .eq('transporter_id', transporter.id)
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1)

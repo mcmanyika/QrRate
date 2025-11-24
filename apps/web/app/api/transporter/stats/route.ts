@@ -50,10 +50,56 @@ export async function GET() {
     // Get recent ratings
     const { data: recentRatings } = await supabase
       .from('rating')
-      .select('*, vehicle:vehicle_id(reg_number)')
+      .select('*, vehicle:vehicle_id(id, reg_number)')
       .in('vehicle_id', vehicleIds)
       .order('created_at', { ascending: false })
       .limit(2)
+
+    // Get expense stats
+    let expenseStats = null
+    try {
+      const now = new Date()
+      const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0]
+      const currentMonthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0]
+
+      const { data: currentMonthExpenses } = await supabase
+        .from('expense')
+        .select('amount, category, status')
+        .eq('transporter_id', transporter.id)
+        .gte('date', currentMonthStart)
+        .lte('date', currentMonthEnd)
+
+      const { data: pendingExpenses } = await supabase
+        .from('expense')
+        .select('category')
+        .eq('transporter_id', transporter.id)
+        .eq('status', 'pending')
+
+      const currentMonthTotal = currentMonthExpenses?.reduce((sum, e) => sum + parseFloat(e.amount.toString()), 0) || 0
+      const pendingCount = pendingExpenses?.length || 0
+
+      // Calculate top category
+      const expensesByCategory: Record<string, number> = {}
+      currentMonthExpenses?.forEach((expense) => {
+        const category = expense.category
+        expensesByCategory[category] = (expensesByCategory[category] || 0) + parseFloat(expense.amount.toString())
+      })
+
+      const topCategory = Object.keys(expensesByCategory).length > 0
+        ? Object.entries(expensesByCategory).reduce((a, b) => 
+            expensesByCategory[a[0]] > expensesByCategory[b[0]] ? a : b
+          )[0]
+        : 'none'
+
+      expenseStats = {
+        current_month_total: currentMonthTotal,
+        pending_approvals: pendingCount,
+        top_category: topCategory,
+      }
+    } catch (error) {
+      // Expense stats are optional, don't fail if expense table doesn't exist yet
+      console.error('Failed to fetch expense stats:', error)
+    }
 
     return NextResponse.json({
       total_vehicles: vehicleIds.length,
@@ -62,6 +108,7 @@ export async function GET() {
       total_tips: totalTips,
       total_tips_amount_cents: totalTipsAmount,
       recent_ratings: recentRatings || [],
+      expense_stats: expenseStats,
     })
   } catch (error) {
     return NextResponse.json(

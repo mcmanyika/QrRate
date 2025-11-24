@@ -4,7 +4,11 @@
 
 @layer base {
   body {
-    @apply bg-white text-gray-900 tracking-tight;
+    @apply bg-white text-gray-900 tracking-tight transition-colors duration-200;
+  }
+  
+  .dark body {
+    @apply bg-gray-900 text-gray-100;
   }
 }
 

@@ -6,6 +6,14 @@ interface VehicleCardProps {
     reg_number: string
     is_active: boolean
     qr_code_svg?: string | null
+    driver?: {
+      id: string
+      name: string
+    } | null
+    conductor?: {
+      id: string
+      name: string
+    } | null
     route?: {
       name: string
     } | null
@@ -65,13 +73,19 @@ function downloadQRCode(svgString: string, filename: string) {
 
 export default function VehicleCard({ vehicle, onGenerateQR, onEdit, onDelete }: VehicleCardProps) {
   return (
-    <div className="bg-white shadow rounded-lg p-6">
+    <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
       <div className="flex flex-col">
         <div className="flex items-start justify-between mb-4">
           <div className="flex-1 min-w-0">
-            <h3 className="text-lg font-medium text-gray-900 truncate">{vehicle.reg_number}</h3>
+            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 truncate">{vehicle.reg_number}</h3>
             {vehicle.route && (
-              <p className="text-sm text-gray-500 mt-1">Route: {vehicle.route.name}</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Route: {vehicle.route.name}</p>
+            )}
+            {vehicle.driver && (
+              <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">Driver: {vehicle.driver.name}</p>
+            )}
+            {vehicle.conductor && (
+              <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">Conductor: {vehicle.conductor.name}</p>
             )}
             <div className="mt-2">
               <span
@@ -97,7 +111,7 @@ export default function VehicleCard({ vehicle, onGenerateQR, onEdit, onDelete }:
             {onEdit && (
               <button
                 onClick={() => onEdit(vehicle.id)}
-                className="text-sm text-gray-600 hover:text-gray-800 whitespace-nowrap"
+                className="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 whitespace-nowrap"
               >
                 Edit
               </button>
@@ -105,7 +119,7 @@ export default function VehicleCard({ vehicle, onGenerateQR, onEdit, onDelete }:
             {onDelete && (
               <button
                 onClick={() => onDelete(vehicle.id)}
-                className="text-sm text-red-600 hover:text-red-800 whitespace-nowrap"
+                className="text-sm text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 whitespace-nowrap"
               >
                 Delete
               </button>

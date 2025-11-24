@@ -69,36 +69,36 @@ export default function TipsPage() {
 
   return (
     <div>
-      <h1 className="text-3xl font-bold text-gray-900 mb-6">Tips</h1>
+      <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-6">Tips</h1>
 
-      <div className="bg-white shadow rounded-lg p-6 mb-6">
-        <h2 className="text-xl font-semibold mb-2">Total Earnings</h2>
-        <p className="text-3xl font-bold text-green-600">
+      <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6 mb-6">
+        <h2 className="text-xl font-semibold mb-2 dark:text-gray-100">Total Earnings</h2>
+        <p className="text-3xl font-bold text-green-600 dark:text-green-400">
           ${(totalEarnings / 100).toFixed(2)}
         </p>
-        <p className="text-sm text-gray-500 mt-1">
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
           {pagination.total} tip{pagination.total !== 1 ? 's' : ''} received
         </p>
       </div>
 
       {tips.length === 0 ? (
-        <p className="text-gray-500">No tips received yet</p>
+        <p className="text-gray-500 dark:text-gray-400">No tips received yet</p>
       ) : (
         <>
           <div className="space-y-4 mb-6">
             {tips.map((tip) => (
-              <div key={tip.id} className="bg-white shadow rounded-lg p-6">
+              <div key={tip.id} className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
                 <div className="flex justify-between items-start">
                   <div>
-                    <p className="text-lg font-semibold text-gray-900">
+                    <p className="text-lg font-semibold text-gray-900 dark:text-gray-100">
                       ${((tip.operator_amount_cents || 0) / 100).toFixed(2)}
                     </p>
                     {tip.vehicle && (
-                      <p className="text-sm text-gray-500 mt-1">
+                      <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                         Vehicle: {tip.vehicle.reg_number}
                       </p>
                     )}
-                    <p className="text-sm text-gray-500 mt-1">
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                       {new Date(tip.created_at).toLocaleDateString()}
                     </p>
                   </div>
