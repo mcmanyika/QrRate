@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import RatingCard from '@/components/dashboard/RatingCard'
 import Pagination from '@/components/dashboard/Pagination'
+import LoadingSpinner from '@/components/LoadingSpinner'
 
 interface Rating {
   id: string
@@ -77,7 +78,11 @@ export default function RatingsPage() {
   }
 
   if (loading) {
-    return <div>Loading...</div>
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <LoadingSpinner size="lg" />
+      </div>
+    )
   }
 
   // Filter ratings based on search query
@@ -193,7 +198,9 @@ export default function RatingsPage() {
 
                   {/* Vehicle Stats */}
                   {loadingStats ? (
-                    <div className="text-gray-500 dark:text-gray-400">Loading stats...</div>
+                    <div className="flex items-center justify-center py-8">
+                      <LoadingSpinner />
+                    </div>
                   ) : vehicleStats ? (
                     <>
                       {/* Overall Rating */}

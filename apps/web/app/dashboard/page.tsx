@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import StatsCard from '@/components/dashboard/StatsCard'
+import LoadingSpinner from '@/components/LoadingSpinner'
 
 interface Stats {
   total_vehicles: number
@@ -50,7 +51,11 @@ export default function DashboardPage() {
   }, [])
 
   if (loading) {
-    return <div>Loading...</div>
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <LoadingSpinner size="lg" />
+      </div>
+    )
   }
 
   if (!stats) {
@@ -63,31 +68,6 @@ export default function DashboardPage() {
     <div>
       <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-6">Dashboard</h1>
 
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 mb-8">
-        <StatsCard
-          title="Total Vehicles"
-          value={stats.total_vehicles}
-          icon="🚐"
-        />
-        <StatsCard
-          title="Total Ratings"
-          value={stats.total_ratings}
-          icon="⭐"
-        />
-        <StatsCard
-          title="Average Rating"
-          value={stats.average_rating.toFixed(1)}
-          icon="📊"
-          subtitle="/ 5.0"
-        />
-        <StatsCard
-          title="Total Tips"
-          value={`$${tipsAmount}`}
-          icon="💝"
-          subtitle={`${stats.total_tips} tips`}
-        />
-      </div>
-
       {/* Expense Stats */}
       {stats.expense_stats && (
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-3 mb-8">
@@ -96,21 +76,53 @@ export default function DashboardPage() {
             value={`$${stats.expense_stats.current_month_total.toFixed(2)}`}
             icon="💰"
             subtitle="This month"
+            href="/dashboard/expenses"
           />
           <StatsCard
             title="Pending Approvals"
             value={stats.expense_stats.pending_approvals}
             icon="⏳"
             subtitle="expenses"
+            href="/dashboard/expenses?status=pending"
           />
           <StatsCard
             title="Top Category"
             value={stats.expense_stats.top_category === 'none' ? 'N/A' : stats.expense_stats.top_category.charAt(0).toUpperCase() + stats.expense_stats.top_category.slice(1).replace('_', ' ')}
             icon="📈"
             subtitle="this month"
+            href={stats.expense_stats.top_category && stats.expense_stats.top_category !== 'none' ? `/dashboard/expenses?category=${stats.expense_stats.top_category}` : '/dashboard/expenses'}
           />
         </div>
       )}
+
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 mb-8">
+        <StatsCard
+          title="Total Vehicles"
+          value={stats.total_vehicles}
+          icon="🚐"
+          href="/dashboard/vehicles"
+        />
+        <StatsCard
+          title="Total Ratings"
+          value={stats.total_ratings}
+          icon="⭐"
+          href="/dashboard/ratings"
+        />
+        <StatsCard
+          title="Average Rating"
+          value={stats.average_rating.toFixed(1)}
+          icon="📊"
+          subtitle="/ 5.0"
+          href="/dashboard/ratings"
+        />
+        <StatsCard
+          title="Total Tips"
+          value={`$${tipsAmount}`}
+          icon="💝"
+          subtitle={`${stats.total_tips} tips`}
+          href="/dashboard/tips"
+        />
+      </div>
 
       <div>
         <div className="flex justify-between items-center mb-4">

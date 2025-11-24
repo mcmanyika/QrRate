@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Pagination from '@/components/dashboard/Pagination'
+import LoadingSpinner from '@/components/LoadingSpinner'
 
 interface Tip {
   id: string
@@ -64,7 +65,11 @@ export default function TipsPage() {
   }
 
   if (loading) {
-    return <div>Loading...</div>
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <LoadingSpinner size="lg" />
+      </div>
+    )
   }
 
   return (

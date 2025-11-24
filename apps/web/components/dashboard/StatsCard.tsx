@@ -1,13 +1,16 @@
+import Link from 'next/link'
+
 interface StatsCardProps {
   title: string
   value: string | number
   icon: string
   subtitle?: string
+  href?: string
 }
 
-export default function StatsCard({ title, value, icon, subtitle }: StatsCardProps) {
-  return (
-    <div className="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg">
+export default function StatsCard({ title, value, icon, subtitle, href }: StatsCardProps) {
+  const cardContent = (
+    <div className={`bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg ${href ? 'cursor-pointer hover:shadow-lg transition-shadow' : ''}`}>
       <div className="p-5">
         <div className="flex items-center">
           <div className="flex-shrink-0">
@@ -28,5 +31,15 @@ export default function StatsCard({ title, value, icon, subtitle }: StatsCardPro
       </div>
     </div>
   )
+
+  if (href) {
+    return (
+      <Link href={href}>
+        {cardContent}
+      </Link>
+    )
+  }
+
+  return cardContent
 }
 

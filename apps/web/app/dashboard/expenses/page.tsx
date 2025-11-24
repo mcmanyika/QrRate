@@ -1,7 +1,9 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import Pagination from '@/components/dashboard/Pagination'
+import LoadingSpinner from '@/components/LoadingSpinner'
 
 interface Expense {
   id: string
@@ -57,6 +59,7 @@ interface PaginationData {
 }
 
 export default function ExpensesPage() {
+  const searchParams = useSearchParams()
   const [expenses, setExpenses] = useState<Expense[]>([])
   const [loading, setLoading] = useState(true)
   const [showAddForm, setShowAddForm] = useState(false)
@@ -73,8 +76,8 @@ export default function ExpensesPage() {
   })
   const [filters, setFilters] = useState({
     vehicle_id: '',
-    category: '',
-    status: '',
+    category: searchParams.get('category') || '',
+    status: searchParams.get('status') || '',
     date_from: '',
     date_to: '',
     search: '',
@@ -381,7 +384,11 @@ export default function ExpensesPage() {
   }
 
   if (loading && expenses.length === 0) {
-    return <div className="text-gray-500 dark:text-gray-400">Loading...</div>
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <LoadingSpinner size="lg" />
+      </div>
+    )
   }
 
   return (

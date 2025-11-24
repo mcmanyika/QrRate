@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import VehicleCard from '@/components/dashboard/VehicleCard'
 import Pagination from '@/components/dashboard/Pagination'
+import LoadingSpinner from '@/components/LoadingSpinner'
 
 interface Vehicle {
   id: string
@@ -324,7 +325,11 @@ export default function VehiclesPage() {
   }
 
   if (loading) {
-    return <div>Loading...</div>
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <LoadingSpinner size="lg" />
+      </div>
+    )
   }
 
   return (

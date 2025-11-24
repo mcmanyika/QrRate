@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import ThemeToggle from '@/components/ThemeToggle'
+import LoadingSpinner from '@/components/LoadingSpinner'
 
 interface Profile {
   name: string
@@ -35,7 +36,7 @@ export default function Header() {
       <div className="flex justify-between items-center">
         <div className="flex items-center">
           {loading ? (
-            <span className="text-sm text-gray-500 dark:text-gray-400">Loading...</span>
+            <LoadingSpinner size="sm" />
           ) : profile ? (
             <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
               Welcome, <span className="font-semibold">{profile.name}</span>

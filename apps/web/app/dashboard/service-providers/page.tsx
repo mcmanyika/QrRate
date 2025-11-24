@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import LoadingSpinner from '@/components/LoadingSpinner'
 
 interface ServiceProvider {
   id: string
@@ -181,7 +182,11 @@ export default function ServiceProvidersPage() {
   }
 
   if (loading) {
-    return <div className="text-gray-500 dark:text-gray-400">Loading...</div>
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <LoadingSpinner size="lg" />
+      </div>
+    )
   }
 
   return (
