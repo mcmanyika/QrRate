@@ -5,16 +5,18 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import { FaChartBar, FaTruck, FaUsers, FaWrench, FaDollarSign, FaStar, FaGift, FaUser, FaSignOutAlt, FaBox } from 'react-icons/fa'
 
 const navigation = [
-  { name: 'Dashboard', href: '/dashboard', icon: '📊' },
-  { name: 'Vehicles', href: '/dashboard/vehicles', icon: '🚐' },
-  { name: 'Staff', href: '/dashboard/staff', icon: '👥' },
-  { name: 'Service Providers', href: '/dashboard/service-providers', icon: '🔧' },
-  { name: 'Expenses', href: '/dashboard/expenses', icon: '💰' },
-  { name: 'Ratings', href: '/dashboard/ratings', icon: '⭐' },
-  { name: 'Tips', href: '/dashboard/tips', icon: '💝' },
-  { name: 'Profile', href: '/dashboard/profile', icon: '👤' },
+  { name: 'Dashboard', href: '/dashboard', icon: FaChartBar },
+  { name: 'Vehicles', href: '/dashboard/vehicles', icon: FaTruck },
+  { name: 'Staff', href: '/dashboard/staff', icon: FaUsers },
+  { name: 'Service Providers', href: '/dashboard/service-providers', icon: FaWrench },
+  { name: 'Expenses', href: '/dashboard/expenses', icon: FaDollarSign },
+  { name: 'Ratings', href: '/dashboard/ratings', icon: FaStar },
+  { name: 'Tips', href: '/dashboard/tips', icon: FaGift },
+  { name: 'Packages', href: '/dashboard/packages', icon: FaBox },
+  { name: 'Profile', href: '/dashboard/profile', icon: FaUser },
 ]
 
 export default function Sidebar() {
@@ -59,7 +61,7 @@ export default function Sidebar() {
                 } ${isHovered ? 'justify-start' : 'justify-center'}`}
                 title={!isHovered ? item.name : undefined}
               >
-                <span className={`text-lg ${isHovered ? 'mr-3' : ''}`}>{item.icon}</span>
+                <item.icon className={`w-5 h-5 ${isHovered ? 'mr-3' : ''}`} />
                 {isHovered && (
                   <span className="whitespace-nowrap">{item.name}</span>
                 )}
@@ -75,7 +77,7 @@ export default function Sidebar() {
           title={!isHovered ? 'Sign out' : undefined}
         >
           <div className="flex items-center justify-center">
-            <span className="text-lg mr-2">🚪</span>
+            <FaSignOutAlt className={`w-5 h-5 ${isHovered ? 'mr-2' : ''}`} />
             {isHovered && (
               <div className="text-sm font-medium text-gray-300 group-hover:text-white whitespace-nowrap">
                 Sign out

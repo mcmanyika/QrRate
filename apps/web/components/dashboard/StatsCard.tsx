@@ -1,9 +1,10 @@
 import Link from 'next/link'
+import { ReactNode } from 'react'
 
 interface StatsCardProps {
   title: string
   value: string | number
-  icon: string
+  icon: ReactNode
   subtitle?: string
   href?: string
 }
@@ -14,7 +15,9 @@ export default function StatsCard({ title, value, icon, subtitle, href }: StatsC
       <div className="p-5">
         <div className="flex items-center">
           <div className="flex-shrink-0">
-            <span className="text-3xl">{icon}</span>
+            <div className="text-gray-600 dark:text-gray-400">
+              {icon}
+            </div>
           </div>
           <div className="ml-5 w-0 flex-1">
             <dl>

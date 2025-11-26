@@ -40,12 +40,64 @@ export async function GET() {
     // Get tips stats
     const { data: tips } = await supabase
       .from('tip')
-      .select('amount_cents, operator_amount_cents')
+      .select('amount_cents, operator_amount_cents, created_at')
       .in('vehicle_id', vehicleIds)
       .eq('stripe_status', 'succeeded')
 
     const totalTips = tips?.length || 0
     const totalTipsAmount = tips?.reduce((sum, t) => sum + (t.operator_amount_cents || 0), 0) || 0
+
+    // Calculate current month tips total
+    const now = new Date()
+    const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+    const currentMonthTips = tips?.filter(t => {
+      const tipDate = new Date(t.created_at)
+      return tipDate >= currentMonthStart
+    }).reduce((sum, t) => sum + (t.operator_amount_cents || 0), 0) || 0
+
+    // Get ratings trend (last 30 days)
+    const thirtyDaysAgo = new Date()
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+    const ratingsTrend: Record<string, { count: number; total: number }> = {}
+    
+    ratings?.forEach((rating) => {
+      const ratingDate = new Date(rating.created_at)
+      if (ratingDate >= thirtyDaysAgo) {
+        const dateKey = ratingDate.toISOString().split('T')[0]
+        if (!ratingsTrend[dateKey]) {
+          ratingsTrend[dateKey] = { count: 0, total: 0 }
+        }
+        ratingsTrend[dateKey].count++
+        ratingsTrend[dateKey].total += rating.stars
+      }
+    })
+
+    // Format ratings trend array
+    const ratingsTrendArray = Object.entries(ratingsTrend)
+      .map(([date, data]) => ({
+        date,
+        average_rating: data.total / data.count,
+      }))
+      .sort((a, b) => a.date.localeCompare(b.date))
+
+    // Get tips trend (last 30 days)
+    const tipsTrend: Record<string, number> = {}
+    
+    tips?.forEach((tip) => {
+      const tipDate = new Date(tip.created_at)
+      if (tipDate >= thirtyDaysAgo) {
+        const dateKey = tipDate.toISOString().split('T')[0]
+        tipsTrend[dateKey] = (tipsTrend[dateKey] || 0) + (tip.operator_amount_cents || 0)
+      }
+    })
+
+    // Format tips trend array
+    const tipsTrendArray = Object.entries(tipsTrend)
+      .map(([date, amount]) => ({
+        date,
+        total_amount: amount / 100, // Convert cents to dollars
+      }))
+      .sort((a, b) => a.date.localeCompare(b.date))
 
     // Get recent ratings
     const { data: recentRatings } = await supabase
@@ -91,10 +143,17 @@ export async function GET() {
           )[0]
         : 'none'
 
+      // Format expense breakdown for pie chart
+      const expenseBreakdown = Object.entries(expensesByCategory).map(([category, amount]) => ({
+        category,
+        amount: parseFloat(amount.toString()),
+      }))
+
       expenseStats = {
         current_month_total: currentMonthTotal,
         pending_approvals: pendingCount,
         top_category: topCategory,
+        expense_breakdown: expenseBreakdown,
       }
     } catch (error) {
       // Expense stats are optional, don't fail if expense table doesn't exist yet
@@ -109,6 +168,9 @@ export async function GET() {
       total_tips_amount_cents: totalTipsAmount,
       recent_ratings: recentRatings || [],
       expense_stats: expenseStats,
+      current_month_tips: currentMonthTips,
+      ratings_trend: ratingsTrendArray,
+      tips_trend: tipsTrendArray,
     })
   } catch (error) {
     return NextResponse.json(

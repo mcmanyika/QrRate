@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback } from 'react'
+import { FaTruck, FaStar, FaChartBar, FaGift } from 'react-icons/fa'
 
 // Android APK download URL
 const ANDROID_DOWNLOAD_URL = 'https://expo.dev/artifacts/eas/r9xrb8NjQebnsKmyjtgQGW.apk';
@@ -61,7 +62,9 @@ export default function Home() {
       {/* Hero Section */}
       <section className="container mx-auto px-4 py-12 md:py-16 relative z-10">
         <div className="text-center max-w-4xl mx-auto animate-fade-in">
-          <div className="text-7xl md:text-9xl mb-8 animate-float inline-block">🚐</div>
+          <div className="text-7xl md:text-9xl mb-8 animate-float inline-block text-gray-700 dark:text-gray-300">
+            <FaTruck className="w-32 h-32 md:w-40 md:h-40 mx-auto" />
+          </div>
           <h1 className="text-5xl md:text-7xl font-extrabold mb-6 gradient-text animate-slide-up tracking-tight">
             RateMyRide
           </h1>
@@ -122,7 +125,9 @@ export default function Home() {
           <div className="group relative text-center p-8 rounded-3xl bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border border-gray-200 dark:border-gray-700 hover:border-green-300 dark:hover:border-green-600 hover:shadow-2xl hover:shadow-green-500/20 transition-all duration-300 hover:-translate-y-2">
             <div className="absolute inset-0 bg-gradient-to-br from-green-500/10 to-transparent rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
             <div className="relative">
-              <div className="text-5xl mb-6 transform group-hover:scale-110 transition-transform duration-300">⭐</div>
+              <div className="text-5xl mb-6 transform group-hover:scale-110 transition-transform duration-300 text-yellow-500 dark:text-yellow-400">
+                <FaStar className="w-16 h-16 mx-auto" />
+              </div>
               <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-3 tracking-tight">
                 Rating System
               </h3>
@@ -134,7 +139,9 @@ export default function Home() {
           <div className="group relative text-center p-8 rounded-3xl bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border border-gray-200 dark:border-gray-700 hover:border-purple-300 dark:hover:border-purple-600 hover:shadow-2xl hover:shadow-purple-500/20 transition-all duration-300 hover:-translate-y-2">
             <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 to-transparent rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
             <div className="relative">
-              <div className="text-5xl mb-6 transform group-hover:scale-110 transition-transform duration-300">📊</div>
+              <div className="text-5xl mb-6 transform group-hover:scale-110 transition-transform duration-300 text-blue-600 dark:text-blue-400">
+                <FaChartBar className="w-16 h-16 mx-auto" />
+              </div>
               <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-3 tracking-tight">
                 View Stats
               </h3>
@@ -146,7 +153,9 @@ export default function Home() {
           <div className="group relative text-center p-8 rounded-3xl bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border border-gray-200 dark:border-gray-700 hover:border-yellow-300 dark:hover:border-yellow-600 hover:shadow-2xl hover:shadow-yellow-500/20 transition-all duration-300 hover:-translate-y-2">
             <div className="absolute inset-0 bg-gradient-to-br from-yellow-500/10 to-transparent rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
             <div className="relative">
-              <div className="text-5xl mb-6 transform group-hover:scale-110 transition-transform duration-300">💝</div>
+              <div className="text-5xl mb-6 transform group-hover:scale-110 transition-transform duration-300 text-pink-500 dark:text-pink-400">
+                <FaGift className="w-16 h-16 mx-auto" />
+              </div>
               <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-3 tracking-tight">
                 Tipping
               </h3>
@@ -258,7 +267,9 @@ export default function Home() {
       {/* Footer */}
       <footer className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white py-8 relative z-10 border-t border-gray-700/50">
         <div className="container mx-auto px-4 text-center">
-          <div className="text-3xl mb-4">🚐</div>
+          <div className="text-3xl mb-4 text-gray-700 dark:text-gray-300">
+            <FaTruck className="w-12 h-12 mx-auto" />
+          </div>
           <p className="text-2xl font-bold mb-2 bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-400 tracking-tight">
             RateMyRide
           </p>

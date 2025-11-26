@@ -2,7 +2,12 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { StyleSheet, Text, View, TextInput, TouchableOpacity, Pressable, ScrollView, Switch, ActivityIndicator, LogBox } from 'react-native';
 import { CameraView, useCameraPermissions, BarcodeScanningResult } from 'expo-camera';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { createClient } from '@supabase/supabase-js';
+import { FontAwesome } from '@expo/vector-icons';
+import { supabase } from './lib/supabase';
+import LoginScreen from './components/LoginScreen';
+import UserProfileScreen from './components/UserProfileScreen';
+import RiderDashboard from './components/RiderDashboard';
+import MenuDrawer from './components/MenuDrawer';
 // Stripe/Tipping disabled - imports removed to avoid build issues
 // To re-enable: uncomment imports and add @stripe/stripe-react-native to package.json
 // import { StripeProvider } from '@stripe/stripe-react-native';
@@ -14,11 +19,6 @@ LogBox.ignoreLogs([
   'addListener',
   'removeListeners',
 ]);
-
-// Configure Supabase via app.json extra or env – replace placeholders when deploying
-const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL as string;
-const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY as string;
-const supabase = createClient(SUPABASE_URL || '', SUPABASE_ANON_KEY || '');
 
 type PendingRating = {
   vehicle_id: string;
@@ -50,6 +50,9 @@ function AppContent() {
   const [permission, requestPermission] = useCameraPermissions();
   const [scanning, setScanning] = useState(false);
   const [viewMode, setViewMode] = useState<'rate' | 'stats'>('rate');
+  const [currentScreen, setCurrentScreen] = useState<'home' | 'rate' | 'stats' | 'login' | 'profile' | 'dashboard'>('home');
+  const [user, setUser] = useState<any>(null);
+  const [loadingAuth, setLoadingAuth] = useState(true);
   const [vehicleId, setVehicleId] = useState<string | null>(null);
   const [routeId, setRouteId] = useState<string | null>(null);
   const [regNumber, setRegNumber] = useState('');
@@ -68,6 +71,7 @@ function AppContent() {
   const [showTipPrompt, setShowTipPrompt] = useState(false);
   const [lastRatingId, setLastRatingId] = useState<string | null>(null);
   const [tipDeviceHash, setTipDeviceHash] = useState<string | null>(null);
+  const [menuDrawerVisible, setMenuDrawerVisible] = useState(false);
 
   const queueKey = 'pending_ratings_v1';
 
@@ -110,6 +114,60 @@ function AppContent() {
     // try to send any queued ratings at startup
     syncQueuedRatings();
   }, [syncQueuedRatings]);
+
+  // Check for existing session on app start
+  useEffect(() => {
+    const checkSession = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          setUser(session.user);
+        }
+      } catch (error) {
+        console.error('Error checking session:', error);
+      } finally {
+        setLoadingAuth(false);
+      }
+    };
+
+    checkSession();
+  }, []);
+
+  // Listen to auth state changes
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('Auth state changed:', event, session?.user?.email || 'no user');
+      const newUser = session?.user || null;
+      setUser(newUser);
+      
+      // Ignore INITIAL_SESSION event - it fires on app start before login
+      if (event === 'INITIAL_SESSION') {
+        return;
+      }
+      
+      if (!newUser) {
+        // Redirect to home if user logs out
+        if (currentScreen === 'profile' || currentScreen === 'dashboard') {
+          setCurrentScreen('home');
+        }
+      } else {
+        // If user logs in (SIGNED_IN event) and we're on login screen, redirect to dashboard
+        if (event === 'SIGNED_IN' && currentScreen === 'login') {
+          console.log('Redirecting to dashboard after SIGNED_IN');
+          setCurrentScreen('dashboard');
+        }
+        // Also redirect if user exists and we're on login screen (fallback for any auth event except INITIAL_SESSION)
+        else if (currentScreen === 'login' && newUser && event !== 'INITIAL_SESSION') {
+          console.log('Redirecting to dashboard (fallback)');
+          setCurrentScreen('dashboard');
+        }
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [currentScreen]);
 
   // Auto-dismiss scan errors after 10 seconds
   useEffect(() => {
@@ -566,6 +624,21 @@ function AppContent() {
     setTimeout(() => setThanks(false), 1500);
   };
 
+  const handleMenuNavigate = (screen: 'login' | 'dashboard' | 'profile' | 'home') => {
+    setCurrentScreen(screen);
+  };
+
+  const handleMenuLogout = async () => {
+    try {
+      await supabase.auth.signOut();
+      await AsyncStorage.removeItem('supabase.auth.token');
+      setUser(null);
+      setCurrentScreen('home');
+    } catch (err) {
+      console.error('Error logging out:', err);
+    }
+  };
+
   if (thanks) {
     return (
       <View style={styles.center}>
@@ -631,9 +704,101 @@ function AppContent() {
     );
   }
 
+  // Show login screen
+  if (currentScreen === 'login') {
+    return (
+      <LoginScreen
+        onLoginSuccess={() => {
+          // The onAuthStateChange listener will handle the redirect to dashboard
+          // We don't need to do anything here since we're now using the same Supabase client instance
+          console.log('Login successful - waiting for auth state change event');
+        }}
+        onBack={() => {
+          setCurrentScreen('home');
+        }}
+      />
+    );
+  }
+
+  // Show dashboard screen
+  if (currentScreen === 'dashboard') {
+    return (
+      <>
+        <RiderDashboard
+          onLogout={() => {
+            setUser(null);
+            setCurrentScreen('home');
+          }}
+          onRateVehicle={() => {
+            setCurrentScreen('home');
+          }}
+          getDeviceHash={deviceHash.get}
+          onOpenMenu={() => setMenuDrawerVisible(true)}
+        />
+        
+        {/* Menu Drawer */}
+        <MenuDrawer
+          visible={menuDrawerVisible}
+          onClose={() => setMenuDrawerVisible(false)}
+          user={user}
+          onNavigate={handleMenuNavigate}
+          onLogout={handleMenuLogout}
+          currentScreen={currentScreen}
+        />
+      </>
+    );
+  }
+
+  // Show profile screen
+  if (currentScreen === 'profile') {
+    return (
+      <>
+        <UserProfileScreen
+          onLogout={() => {
+            setUser(null);
+            setCurrentScreen('home');
+          }}
+          onBack={() => {
+            setCurrentScreen('home');
+          }}
+          getDeviceHash={deviceHash.get}
+          onOpenMenu={() => setMenuDrawerVisible(true)}
+        />
+        
+        {/* Menu Drawer */}
+        <MenuDrawer
+          visible={menuDrawerVisible}
+          onClose={() => setMenuDrawerVisible(false)}
+          user={user}
+          onNavigate={handleMenuNavigate}
+          onLogout={handleMenuLogout}
+          currentScreen={currentScreen}
+        />
+      </>
+    );
+  }
+
+  // Show loading while checking auth
+  if (loadingAuth) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color="#2563eb" />
+        <Text style={styles.loadingText}>Loading...</Text>
+      </View>
+    );
+  }
+
   if (!vehicleId) {
     return (
       <View style={styles.homeContainer}>
+        {/* Hamburger Menu Icon */}
+        <TouchableOpacity 
+          style={styles.hamburgerIcon}
+          onPress={() => setMenuDrawerVisible(true)}
+        >
+          <FontAwesome name="bars" size={22} color="#2563eb" />
+        </TouchableOpacity>
+
         <ScrollView 
           style={styles.homeScrollContainer}
           contentContainerStyle={styles.homeScrollContent}
@@ -645,9 +810,6 @@ function AppContent() {
               <Text style={styles.icon}>🚐</Text>
             </View>
             <Text style={styles.header}>RateMyRide</Text>
-            <Text style={styles.subtitle}>
-              Scan the QR code or enter the registration number to {viewMode === 'rate' ? 'rate' : 'view stats for'} this ride
-            </Text>
             {scanError ? (
               <View style={styles.errorContainer}>
                 <Text style={styles.errorText}>{scanError}</Text>
@@ -662,17 +824,14 @@ function AppContent() {
           </View>
 
           <View style={styles.toggleContainer}>
-            <Text style={styles.toggleLabel}>Rate vehicle</Text>
-            <View style={{ marginHorizontal: 12 }}>
-              <Switch
-                value={viewMode === 'stats'}
-                onValueChange={(value) => setViewMode(value ? 'stats' : 'rate')}
-                trackColor={{ false: '#d1d5db', true: '#2563eb' }}
-                thumbColor="#ffffff"
-                ios_backgroundColor="#d1d5db"
-              />
-            </View>
-            <Text style={styles.toggleLabel}>View stats</Text>
+            <Switch
+              value={viewMode === 'stats'}
+              onValueChange={(value) => setViewMode(value ? 'stats' : 'rate')}
+              trackColor={{ false: '#d1d5db', true: '#2563eb' }}
+              thumbColor="#ffffff"
+              ios_backgroundColor="#d1d5db"
+            />
+            <Text style={styles.toggleLabel}>{viewMode === 'rate' ? 'Rate Mode' : 'Stats Mode'}</Text>
           </View>
           
           <Pressable
@@ -683,7 +842,7 @@ function AppContent() {
             }}
             style={styles.scanButton}
           >
-            <Text style={styles.scanButtonText}>📷 Scan QR Code</Text>
+            <Text style={styles.scanButtonText}>Scan QR Code</Text>
           </Pressable>
 
           <View style={styles.divider}>
@@ -694,7 +853,7 @@ function AppContent() {
 
           <View style={styles.inputSection}>
             <TextInput
-              placeholder="e.g., ABC1234"
+              placeholder="Registration Number"
               value={regNumber}
               onChangeText={(text) => {
                 setRegNumber(text.toUpperCase());
@@ -705,7 +864,6 @@ function AppContent() {
               autoCapitalize="characters"
               autoCorrect={false}
             />
-            <Text style={styles.inputLabel}>Enter registration number</Text>
             {regNumberError ? (
               <Text style={styles.errorText}>{regNumberError}</Text>
             ) : null}
@@ -720,10 +878,20 @@ function AppContent() {
             disabled={!regNumber.trim()}
           >
             <Text style={[styles.submitRegButtonText, !regNumber.trim() && styles.submitRegButtonTextDisabled]}>
-              🔍 Search
+              Continue
             </Text>
           </Pressable>
         </View>
+
+        {/* Menu Drawer */}
+        <MenuDrawer
+          visible={menuDrawerVisible}
+          onClose={() => setMenuDrawerVisible(false)}
+          user={user}
+          onNavigate={handleMenuNavigate}
+          onLogout={handleMenuLogout}
+          currentScreen={currentScreen}
+        />
       </View>
     );
   }
@@ -731,28 +899,37 @@ function AppContent() {
   // Show stats view if in stats mode
   if (viewMode === 'stats' && vehicleId) {
     return (
-      <ScrollView 
-        style={styles.scrollContainer}
-        contentContainerStyle={styles.statsContainer}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.statsHeader}>
-          <Pressable
-            onPress={() => {
-              setVehicleId(null);
-              setRouteId(null);
-              setStats(null);
-              setVehicleRegNumber('');
-            }}
-            style={styles.backButtonStats}
-          >
-            <Text style={styles.backButtonText}>← Back</Text>
-          </Pressable>
-          <Text style={styles.statsTitle}>Vehicle Stats</Text>
-          {vehicleRegNumber ? (
-            <Text style={styles.statsSubtitle}>{vehicleRegNumber}</Text>
-          ) : null}
-        </View>
+      <View style={styles.ratingPageContainer}>
+        {/* Hamburger Menu Icon */}
+        <TouchableOpacity 
+          style={styles.hamburgerIcon}
+          onPress={() => setMenuDrawerVisible(true)}
+        >
+          <FontAwesome name="bars" size={22} color="#2563eb" />
+        </TouchableOpacity>
+
+        <ScrollView 
+          style={styles.scrollContainer}
+          contentContainerStyle={styles.statsContainer}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.statsHeader}>
+            <Pressable
+              onPress={() => {
+                setVehicleId(null);
+                setRouteId(null);
+                setStats(null);
+                setVehicleRegNumber('');
+              }}
+              style={styles.backButtonStats}
+            >
+              <Text style={styles.backButtonText}>← Back</Text>
+            </Pressable>
+            <Text style={styles.statsTitle}>Vehicle Stats</Text>
+            {vehicleRegNumber ? (
+              <Text style={styles.statsSubtitle}>{vehicleRegNumber}</Text>
+            ) : null}
+          </View>
 
         {loadingStats ? (
           <View style={styles.center}>
@@ -877,12 +1054,31 @@ function AppContent() {
             </Pressable>
           </View>
         )}
-      </ScrollView>
+        </ScrollView>
+
+        {/* Menu Drawer */}
+        <MenuDrawer
+          visible={menuDrawerVisible}
+          onClose={() => setMenuDrawerVisible(false)}
+          user={user}
+          onNavigate={handleMenuNavigate}
+          onLogout={handleMenuLogout}
+          currentScreen={currentScreen}
+        />
+      </View>
     );
   }
 
   return (
     <View style={styles.ratingPageContainer}>
+      {/* Hamburger Menu Icon */}
+      <TouchableOpacity 
+        style={styles.hamburgerIcon}
+        onPress={() => setMenuDrawerVisible(true)}
+      >
+        <FontAwesome name="bars" size={22} color="#2563eb" />
+      </TouchableOpacity>
+
       <View style={styles.headerContainer}>
         <View style={styles.ratingHeader}>
           <Text style={styles.ratingTitle}>RateMyRide</Text>
@@ -990,6 +1186,16 @@ function AppContent() {
           onSkip={handleTipSkip}
         />
       )}
+
+      {/* Menu Drawer */}
+      <MenuDrawer
+        visible={menuDrawerVisible}
+        onClose={() => setMenuDrawerVisible(false)}
+        user={user}
+        onNavigate={handleMenuNavigate}
+        onLogout={handleMenuLogout}
+        currentScreen={currentScreen}
+      />
     </View>
   );
 }
@@ -1087,30 +1293,30 @@ const styles = StyleSheet.create({
   },
   homeContent: {
     alignItems: 'center',
-    marginBottom: 48,
+    marginBottom: 32,
   },
   iconContainer: {
-    width: 96,
-    height: 96,
+    width: 80,
+    height: 80,
     backgroundColor: '#2563eb',
-    borderRadius: 28,
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 24,
+    marginBottom: 16,
     shadowColor: '#2563eb',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 12,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   icon: {
-    fontSize: 48,
+    fontSize: 40,
   },
   header: {
-    fontSize: 36,
+    fontSize: 32,
     fontWeight: '700',
     color: '#111827',
-    marginBottom: 12,
+    marginBottom: 8,
   },
   title: {
     fontSize: 28,
@@ -1127,23 +1333,23 @@ const styles = StyleSheet.create({
   },
   scanButton: {
     backgroundColor: '#2563eb',
-    paddingHorizontal: 40,
-    paddingVertical: 20,
-    borderRadius: 20,
+    paddingHorizontal: 32,
+    paddingVertical: 18,
+    borderRadius: 16,
     shadowColor: '#2563eb',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
-    elevation: 10,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
     width: '100%',
     maxWidth: 320,
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 20,
   },
   scanButtonText: {
     color: '#ffffff',
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: 17,
+    fontWeight: '600',
   },
   successIcon: {
     width: 80,
@@ -1311,10 +1517,10 @@ const styles = StyleSheet.create({
     paddingVertical: 22,
     borderRadius: 16,
     shadowColor: '#2563eb',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
     width: '100%',
   },
   submitButtonDisabled: {
@@ -1335,10 +1541,10 @@ const styles = StyleSheet.create({
     paddingVertical: 18,
     borderRadius: 16,
     shadowColor: '#2563eb',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   buttonText: {
     color: '#ffffff',
@@ -1410,7 +1616,7 @@ const styles = StyleSheet.create({
   inputSection: {
     width: '100%',
     maxWidth: 320,
-    marginBottom: 24,
+    marginBottom: 20,
   },
   inputLabel: {
     fontSize: 14,
@@ -1421,23 +1627,23 @@ const styles = StyleSheet.create({
   },
   regInput: {
     backgroundColor: '#ffffff',
-    borderWidth: 2,
+    borderWidth: 1.5,
     borderColor: '#e2e8f0',
-    borderRadius: 16,
-    padding: 18,
-    fontSize: 18,
+    borderRadius: 12,
+    padding: 16,
+    fontSize: 16,
     color: '#0f172a',
     textAlign: 'center',
-    fontWeight: '700',
-    letterSpacing: 2,
+    fontWeight: '600',
+    letterSpacing: 1,
     marginBottom: 8,
     width: '100%',
     maxWidth: 320,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowRadius: 2,
+    elevation: 2,
   },
   regInputError: {
     borderColor: '#ef4444',
@@ -1555,14 +1761,14 @@ const styles = StyleSheet.create({
   },
   submitRegButton: {
     backgroundColor: '#2563eb',
-    paddingHorizontal: 40,
-    paddingVertical: 20,
-    borderRadius: 20,
+    paddingHorizontal: 32,
+    paddingVertical: 18,
+    borderRadius: 16,
     shadowColor: '#2563eb',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
-    elevation: 10,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 5,
     width: '100%',
     maxWidth: 320,
     alignItems: 'center',
@@ -1572,8 +1778,8 @@ const styles = StyleSheet.create({
   },
   submitRegButtonText: {
     color: '#ffffff',
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: 17,
+    fontWeight: '600',
     textAlign: 'center',
   },
   submitRegButtonTextDisabled: {
@@ -1584,17 +1790,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     width: '100%',
     maxWidth: 320,
-    marginBottom: 24,
+    marginBottom: 20,
   },
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: '#d1d5db',
+    backgroundColor: '#e5e7eb',
   },
   dividerText: {
-    marginHorizontal: 16,
-    fontSize: 14,
-    color: '#6b7280',
+    marginHorizontal: 12,
+    fontSize: 13,
+    color: '#9ca3af',
     fontWeight: '500',
   },
   toggleContainer: {
@@ -1602,11 +1808,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 24,
+    gap: 8,
   },
   toggleLabel: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
-    color: '#374151',
+    color: '#6b7280',
   },
   statsHeader: {
     marginBottom: 24,
@@ -1793,6 +2000,88 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#9ca3af',
     fontStyle: 'italic',
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 24,
+    width: '100%',
+    maxWidth: 320,
+  },
+  dashboardButtonInline: {
+    flex: 1,
+    backgroundColor: '#2563eb',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+    shadowColor: '#2563eb',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  dashboardButtonText: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  authButtonInline: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+    borderWidth: 2,
+    borderColor: '#e2e8f0',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  authButtonInlineText: {
+    color: '#2563eb',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  authButton: {
+    backgroundColor: '#ffffff',
+    borderWidth: 2,
+    borderColor: '#e2e8f0',
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginBottom: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  authButtonText: {
+    color: '#2563eb',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  hamburgerIcon: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    zIndex: 100,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#ffffff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 5,
   },
 });
 

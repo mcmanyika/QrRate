@@ -3,6 +3,10 @@
 import { useEffect, useState } from 'react'
 import StatsCard from '@/components/dashboard/StatsCard'
 import LoadingSpinner from '@/components/LoadingSpinner'
+import ExpenseBreakdownChart from '@/components/dashboard/ExpenseBreakdownChart'
+import ExpensesVsTipsChart from '@/components/dashboard/ExpensesVsTipsChart'
+import RatingsTrendChart from '@/components/dashboard/RatingsTrendChart'
+import { FaTruck, FaStar, FaChartBar, FaGift, FaDollarSign, FaClock, FaChartLine } from 'react-icons/fa'
 
 interface Stats {
   total_vehicles: number
@@ -15,7 +19,11 @@ interface Stats {
     current_month_total: number
     pending_approvals: number
     top_category: string
+    expense_breakdown?: Array<{ category: string; amount: number }>
   }
+  current_month_tips?: number
+  ratings_trend?: Array<{ date: string; average_rating: number }>
+  tips_trend?: Array<{ date: string; total_amount: number }>
 }
 
 export default function DashboardPage() {
@@ -74,21 +82,21 @@ export default function DashboardPage() {
           <StatsCard
             title="Monthly Expenses"
             value={`$${stats.expense_stats.current_month_total.toFixed(2)}`}
-            icon="💰"
+            icon={<FaDollarSign className="w-8 h-8" />}
             subtitle="This month"
             href="/dashboard/expenses"
           />
           <StatsCard
             title="Pending Approvals"
             value={stats.expense_stats.pending_approvals}
-            icon="⏳"
+            icon={<FaClock className="w-8 h-8" />}
             subtitle="expenses"
             href="/dashboard/expenses?status=pending"
           />
           <StatsCard
             title="Top Category"
             value={stats.expense_stats.top_category === 'none' ? 'N/A' : stats.expense_stats.top_category.charAt(0).toUpperCase() + stats.expense_stats.top_category.slice(1).replace('_', ' ')}
-            icon="📈"
+            icon={<FaChartLine className="w-8 h-8" />}
             subtitle="this month"
             href={stats.expense_stats.top_category && stats.expense_stats.top_category !== 'none' ? `/dashboard/expenses?category=${stats.expense_stats.top_category}` : '/dashboard/expenses'}
           />
@@ -99,30 +107,66 @@ export default function DashboardPage() {
         <StatsCard
           title="Total Vehicles"
           value={stats.total_vehicles}
-          icon="🚐"
+          icon={<FaTruck className="w-8 h-8" />}
           href="/dashboard/vehicles"
         />
         <StatsCard
           title="Total Ratings"
           value={stats.total_ratings}
-          icon="⭐"
+          icon={<FaStar className="w-8 h-8" />}
           href="/dashboard/ratings"
         />
         <StatsCard
           title="Average Rating"
           value={stats.average_rating.toFixed(1)}
-          icon="📊"
+          icon={<FaChartBar className="w-8 h-8" />}
           subtitle="/ 5.0"
           href="/dashboard/ratings"
         />
         <StatsCard
           title="Total Tips"
           value={`$${tipsAmount}`}
-          icon="💝"
+          icon={<FaGift className="w-8 h-8" />}
           subtitle={`${stats.total_tips} tips`}
           href="/dashboard/tips"
         />
       </div>
+
+      {/* Charts Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        {/* Expense Breakdown Chart */}
+        {stats.expense_stats?.expense_breakdown && stats.expense_stats.expense_breakdown.length > 0 && (
+          <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+              Expense Breakdown by Category
+            </h3>
+            <ExpenseBreakdownChart data={stats.expense_stats.expense_breakdown} />
+          </div>
+        )}
+
+        {/* Expenses vs Tips Chart */}
+        {stats.expense_stats && stats.current_month_tips !== undefined && (
+          <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+              Monthly Expenses vs Tips
+            </h3>
+            <ExpensesVsTipsChart
+              expenses={stats.expense_stats.current_month_total}
+              tips={stats.current_month_tips / 100}
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Ratings Trend Chart - Full Width */}
+      {stats.ratings_trend && stats.ratings_trend.length > 0 && (
+        <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6 mb-8">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+            Ratings Trend (Last 30 Days)
+          </h3>
+          <RatingsTrendChart data={stats.ratings_trend} />
+        </div>
+      )}
 
       <div>
         <div className="flex justify-between items-center mb-4">
