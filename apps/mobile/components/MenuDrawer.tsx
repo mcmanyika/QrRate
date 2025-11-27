@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated, Pressable, TouchableOpacity, Dimensions } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
+import { useTheme } from '../contexts/ThemeContext';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const DRAWER_WIDTH = Math.min(SCREEN_WIDTH * 0.75, 300);
@@ -24,6 +25,7 @@ export default function MenuDrawer({
 }: MenuDrawerProps) {
   const slideAnim = useRef(new Animated.Value(DRAWER_WIDTH)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
+  const { theme, isDark, toggleTheme } = useTheme();
 
   useEffect(() => {
     if (visible) {
@@ -69,13 +71,15 @@ export default function MenuDrawer({
     onClose();
   };
 
+  const dynamicStyles = getStyles(theme);
+
   return (
-    <View style={styles.container} pointerEvents={visible ? 'auto' : 'none'}>
+    <View style={dynamicStyles.container} pointerEvents={visible ? 'auto' : 'none'}>
       {/* Backdrop */}
       <Pressable style={StyleSheet.absoluteFill} onPress={onClose}>
         <Animated.View 
           style={[
-            styles.backdrop,
+            dynamicStyles.backdrop,
             { opacity: opacityAnim }
           ]} 
         />
@@ -84,85 +88,103 @@ export default function MenuDrawer({
       {/* Drawer */}
       <Animated.View 
         style={[
-          styles.drawer,
+          dynamicStyles.drawer,
           {
             transform: [{ translateX: slideAnim }]
           }
         ]}
       >
         {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Menu</Text>
-          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-            <FontAwesome name="times" size={20} color="#6b7280" />
+        <View style={dynamicStyles.header}>
+          <Text style={dynamicStyles.headerTitle}>Menu</Text>
+          <TouchableOpacity onPress={onClose} style={dynamicStyles.closeButton}>
+            <FontAwesome name="times" size={20} color={theme.textSecondary} />
           </TouchableOpacity>
         </View>
 
         {/* Menu Items */}
-        <View style={styles.menuItems}>
+        <View style={dynamicStyles.menuItems}>
           {/* Navigation Section */}
-          <View style={styles.section}>
+          <View style={dynamicStyles.section}>
             {currentScreen !== 'home' && (
               <TouchableOpacity 
-                style={styles.menuItem}
+                style={dynamicStyles.menuItem}
                 onPress={() => handleNavigate('home')}
               >
-                <FontAwesome name="home" size={20} color="#374151" style={styles.menuIcon} />
-                <Text style={styles.menuText}>Home</Text>
+                <FontAwesome name="home" size={20} color={theme.iconColor} style={dynamicStyles.menuIcon} />
+                <Text style={dynamicStyles.menuText}>Home</Text>
               </TouchableOpacity>
             )}
           </View>
 
           {/* Account Section */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Account</Text>
+          <View style={dynamicStyles.section}>
+            <Text style={dynamicStyles.sectionTitle}>Account</Text>
             
             {user ? (
               <>
                 {currentScreen !== 'dashboard' && (
                   <TouchableOpacity 
-                    style={styles.menuItem}
+                    style={dynamicStyles.menuItem}
                     onPress={() => handleNavigate('dashboard')}
                   >
-                    <FontAwesome name="bar-chart" size={20} color="#374151" style={styles.menuIcon} />
-                    <Text style={styles.menuText}>Dashboard</Text>
+                    <FontAwesome name="bar-chart" size={20} color={theme.iconColor} style={dynamicStyles.menuIcon} />
+                    <Text style={dynamicStyles.menuText}>Dashboard</Text>
                   </TouchableOpacity>
                 )}
                 
                 {currentScreen !== 'profile' && (
                   <TouchableOpacity 
-                    style={styles.menuItem}
+                    style={dynamicStyles.menuItem}
                     onPress={() => handleNavigate('profile')}
                   >
-                    <FontAwesome name="user" size={20} color="#374151" style={styles.menuIcon} />
-                    <Text style={styles.menuText}>Profile</Text>
+                    <FontAwesome name="user" size={20} color={theme.iconColor} style={dynamicStyles.menuIcon} />
+                    <Text style={dynamicStyles.menuText}>Profile</Text>
                   </TouchableOpacity>
                 )}
                 
                 <TouchableOpacity 
-                  style={[styles.menuItem, styles.logoutItem]}
+                  style={[dynamicStyles.menuItem, dynamicStyles.logoutItem]}
                   onPress={handleLogout}
                 >
-                  <FontAwesome name="sign-out" size={20} color="#ef4444" style={styles.menuIcon} />
-                  <Text style={[styles.menuText, styles.logoutText]}>Logout</Text>
+                  <FontAwesome name="sign-out" size={20} color={theme.error} style={dynamicStyles.menuIcon} />
+                  <Text style={dynamicStyles.logoutText}>Logout</Text>
                 </TouchableOpacity>
               </>
             ) : (
               <TouchableOpacity 
-                style={styles.menuItem}
+                style={dynamicStyles.menuItem}
                 onPress={() => handleNavigate('login')}
               >
-                <FontAwesome name="lock" size={20} color="#374151" style={styles.menuIcon} />
-                <Text style={styles.menuText}>Login</Text>
+                <FontAwesome name="lock" size={20} color={theme.iconColor} style={dynamicStyles.menuIcon} />
+                <Text style={dynamicStyles.menuText}>Login</Text>
               </TouchableOpacity>
             )}
           </View>
 
+          {/* Theme Toggle */}
+          <View style={dynamicStyles.section}>
+            <TouchableOpacity 
+              style={dynamicStyles.menuItem}
+              onPress={toggleTheme}
+            >
+              <FontAwesome 
+                name={isDark ? 'sun-o' : 'moon-o'} 
+                size={20} 
+                color={theme.iconColor} 
+                style={dynamicStyles.menuIcon} 
+              />
+              <Text style={dynamicStyles.menuText}>
+                {isDark ? 'Light Mode' : 'Dark Mode'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
           {/* App Info */}
-          <View style={styles.footer}>
-            <Text style={styles.footerText}>RateMyRide v0.1.0</Text>
+          <View style={dynamicStyles.footer}>
+            <Text style={dynamicStyles.footerText}>RateMyRide v0.1.0</Text>
             {user && (
-              <Text style={styles.footerEmail}>{user.email}</Text>
+              <Text style={dynamicStyles.footerEmail}>{user.email}</Text>
             )}
           </View>
         </View>
@@ -171,18 +193,18 @@ export default function MenuDrawer({
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (theme: any) => StyleSheet.create({
   container: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    zIndex: 1000,
+    zIndex: 9999,
   },
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: theme.overlay,
   },
   drawer: {
     position: 'absolute',
@@ -190,8 +212,8 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     width: DRAWER_WIDTH,
-    backgroundColor: '#ffffff',
-    shadowColor: '#000',
+    backgroundColor: theme.card,
+    shadowColor: theme.shadow,
     shadowOffset: { width: -2, height: 0 },
     shadowOpacity: 0.25,
     shadowRadius: 10,
@@ -205,25 +227,20 @@ const styles = StyleSheet.create({
     paddingTop: 60,
     paddingBottom: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
+    borderBottomColor: theme.border,
   },
   headerTitle: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#111827',
+    color: theme.text,
   },
   closeButton: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#f3f4f6',
+    backgroundColor: theme.inputBg,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  closeButtonText: {
-    fontSize: 20,
-    color: '#6b7280',
-    fontWeight: '600',
   },
   menuItems: {
     flex: 1,
@@ -236,7 +253,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#9ca3af',
+    color: theme.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 1,
     marginBottom: 12,
@@ -256,13 +273,15 @@ const styles = StyleSheet.create({
   menuText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#374151',
+    color: theme.text,
   },
   logoutItem: {
     marginTop: 8,
   },
   logoutText: {
-    color: '#ef4444',
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.error,
   },
   footer: {
     position: 'absolute',
@@ -272,16 +291,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 24,
     borderTopWidth: 1,
-    borderTopColor: '#e2e8f0',
+    borderTopColor: theme.border,
   },
   footerText: {
     fontSize: 12,
-    color: '#9ca3af',
+    color: theme.textTertiary,
     textAlign: 'center',
   },
   footerEmail: {
     fontSize: 12,
-    color: '#6b7280',
+    color: theme.textSecondary,
     textAlign: 'center',
     marginTop: 4,
   },

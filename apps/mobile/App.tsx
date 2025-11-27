@@ -8,6 +8,8 @@ import LoginScreen from './components/LoginScreen';
 import UserProfileScreen from './components/UserProfileScreen';
 import RiderDashboard from './components/RiderDashboard';
 import MenuDrawer from './components/MenuDrawer';
+import PointsEarnedNotification from './components/PointsEarnedNotification';
+import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 // Stripe/Tipping disabled - imports removed to avoid build issues
 // To re-enable: uncomment imports and add @stripe/stripe-react-native to package.json
 // import { StripeProvider } from '@stripe/stripe-react-native';
@@ -46,8 +48,849 @@ type VehicleStats = {
   recentComments: Array<{ comment: string; stars: number; created_at: string }>;
 };
 
+// Moved getStyles before AppContent to fix hoisting issue
+const getStyles = (theme: any) => StyleSheet.create({
+  center: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+    backgroundColor: theme.background,
+  },
+  ratingPageContainer: {
+    flex: 1,
+    backgroundColor: theme.background,
+  },
+  scrollContainer: {
+    flex: 1,
+    backgroundColor: theme.background,
+  },
+  container: {
+    backgroundColor: theme.background,
+    padding: 20,
+    paddingTop: 140,
+    paddingBottom: 100,
+  },
+  statsContainer: {
+    backgroundColor: theme.background,
+    padding: 20,
+    paddingTop: 20,
+    paddingBottom: 100,
+  },
+  homeContainer: {
+    flex: 1,
+    backgroundColor: theme.background,
+  },
+  homeScrollContainer: {
+    flex: 1,
+  },
+  homeScrollContent: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+    paddingBottom: 100,
+    minHeight: '100%',
+  },
+  homeContent: {
+    alignItems: 'center',
+    marginBottom: 32,
+  },
+  iconContainer: {
+    width: 80,
+    height: 80,
+    backgroundColor: theme.primary,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+    shadowColor: '#2563eb',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  icon: {
+    fontSize: 40,
+  },
+  header: {
+    fontSize: 32,
+    fontWeight: '700',
+    color: theme.text,
+    marginBottom: 8,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: theme.text,
+    marginBottom: 8,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: theme.textSecondary,
+    textAlign: 'center',
+    maxWidth: 280,
+    marginBottom: 12,
+  },
+  scanButton: {
+    backgroundColor: theme.primary,
+    paddingHorizontal: 32,
+    paddingVertical: 18,
+    borderRadius: 16,
+    shadowColor: '#2563eb',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    width: '100%',
+    maxWidth: 320,
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  scanButtonText: {
+    color: '#ffffff',
+    fontSize: 17,
+    fontWeight: '600',
+  },
+  successIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#d1fae5',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 24,
+  },
+  checkmark: {
+    fontSize: 48,
+    color: theme.success,
+  },
+  headerContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: theme.background,
+    paddingTop: 60,
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+    zIndex: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.border,
+    shadowColor: theme.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  ratingHeader: {
+    marginBottom: 0,
+  },
+  ratingTitle: {
+    fontSize: 32,
+    fontWeight: '800',
+    color: theme.text,
+    marginBottom: 6,
+    letterSpacing: -0.5,
+  },
+  ratingSubtitle: {
+    fontSize: 15,
+    color: theme.textSecondary,
+    fontWeight: '500',
+  },
+  section: {
+    marginBottom: 28,
+    width: '100%',
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.text,
+    marginBottom: 16,
+  },
+  starRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+  },
+  starButton: {
+    padding: 10,
+  },
+  star: {
+    fontSize: 52,
+    color: '#e2e8f0',
+    marginRight: 6,
+    textShadowColor: 'rgba(0, 0, 0, 0.1)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+  starSelected: {
+    color: '#fbbf24',
+    textShadowColor: 'rgba(251, 191, 36, 0.4)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
+  },
+  tagRatingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 4,
+    borderRadius: 12,
+    backgroundColor: '#ffffff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  tagLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1e293b',
+    flex: 1,
+  },
+  tagStarRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  tagStarButton: {
+    padding: 4,
+  },
+  tagStar: {
+    fontSize: 30,
+    color: '#e2e8f0',
+    marginRight: 3,
+  },
+  tagStarSelected: {
+    color: '#fbbf24',
+    textShadowColor: 'rgba(251, 191, 36, 0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+  input: {
+    backgroundColor: theme.card,
+    borderWidth: 1.5,
+    borderColor: theme.border,
+    borderRadius: 16,
+    padding: 18,
+    fontSize: 16,
+    color: theme.text,
+    minHeight: 110,
+    textAlignVertical: 'top',
+    shadowColor: theme.shadow,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  charCount: {
+    fontSize: 12,
+    color: theme.textTertiary,
+    marginTop: 8,
+    textAlign: 'right',
+  },
+  submitButtonSpacer: {
+    height: 20,
+  },
+  footerContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: theme.background,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 32,
+    borderTopWidth: 1,
+    borderTopColor: theme.border,
+    shadowColor: theme.shadow,
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  submitButton: {
+    backgroundColor: theme.primary,
+    paddingHorizontal: 32,
+    paddingVertical: 22,
+    borderRadius: 16,
+    shadowColor: '#2563eb',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    width: '100%',
+  },
+  submitButtonDisabled: {
+    backgroundColor: '#d1d5db',
+  },
+  submitButtonText: {
+    color: '#ffffff',
+    fontSize: 18,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  submitButtonTextDisabled: {
+    color: theme.textSecondary,
+  },
+  button: {
+    backgroundColor: theme.primary,
+    paddingHorizontal: 32,
+    paddingVertical: 18,
+    borderRadius: 16,
+    shadowColor: '#2563eb',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  buttonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  cameraContainer: {
+    flex: 1,
+    backgroundColor: '#000000',
+  },
+  cameraBg: {
+    backgroundColor: '#111827',
+  },
+  padding: {
+    padding: 24,
+  },
+  whiteText: {
+    color: '#ffffff',
+    fontSize: 18,
+  },
+  permissionTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  permissionSubtitle: {
+    fontSize: 16,
+    marginBottom: 32,
+    textAlign: 'center',
+    color: '#d1d5db',
+  },
+  cameraHeader: {
+    position: 'absolute',
+    top: 48,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 24,
+  },
+  backButton: {
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    borderRadius: 20,
+    padding: 12,
+    alignSelf: 'flex-start',
+  },
+  cameraFooter: {
+    position: 'absolute',
+    bottom: 48,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+  },
+  scanHint: {
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    borderRadius: 16,
+    padding: 24,
+  },
+  scanTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  scanSubtitle: {
+    fontSize: 14,
+    textAlign: 'center',
+    color: '#e5e7eb',
+  },
+  inputSection: {
+    width: '100%',
+    maxWidth: 320,
+    marginBottom: 20,
+  },
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.text,
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  regInput: {
+    backgroundColor: theme.card,
+    borderWidth: 1.5,
+    borderColor: theme.border,
+    borderRadius: 12,
+    padding: 16,
+    fontSize: 16,
+    color: theme.text,
+    textAlign: 'center',
+    fontWeight: '600',
+    letterSpacing: 1,
+    marginBottom: 8,
+    width: '100%',
+    maxWidth: 320,
+    shadowColor: theme.shadow,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  regInputError: {
+    borderColor: '#ef4444',
+  },
+  errorText: {
+    fontSize: 12,
+    color: theme.error,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  errorContainer: {
+    backgroundColor: theme.errorBg,
+    borderWidth: 1.5,
+    borderColor: '#fecaca',
+    borderRadius: 12,
+    padding: 14,
+    marginTop: 16,
+    marginBottom: 8,
+    maxWidth: 320,
+    width: '100%',
+    shadowColor: '#ef4444',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  duplicateRatingContainer: {
+    backgroundColor: theme.successBg,
+    borderWidth: 1.5,
+    borderColor: '#bbf7d0',
+    borderRadius: 16,
+    padding: 20,
+    marginTop: 20,
+    marginBottom: 20,
+    width: '100%',
+    shadowColor: '#10b981',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 4,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  duplicateRatingIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#d1fae5',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+    flexShrink: 0,
+  },
+  duplicateRatingIconText: {
+    fontSize: 24,
+    color: theme.success,
+    fontWeight: '700',
+  },
+  duplicateRatingContent: {
+    flex: 1,
+  },
+  duplicateRatingTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#065f46',
+    marginBottom: 6,
+  },
+  duplicateRatingMessage: {
+    fontSize: 14,
+    color: '#047857',
+    lineHeight: 20,
+  },
+  duplicateRatingDismiss: {
+    marginLeft: 12,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    flexShrink: 0,
+  },
+  duplicateRatingDismissText: {
+    color: theme.success,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  dismissErrorButton: {
+    marginTop: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    alignSelf: 'center',
+  },
+  dismissErrorText: {
+    color: theme.error,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  submitRegButtonSpacer: {
+    height: 20,
+  },
+  homeFooterContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: theme.background,
+    paddingHorizontal: 24,
+    paddingTop: 12,
+    paddingBottom: 32,
+    borderTopWidth: 1,
+    borderTopColor: theme.border,
+    shadowColor: theme.shadow,
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 8,
+    alignItems: 'center',
+  },
+  submitRegButton: {
+    backgroundColor: theme.primary,
+    paddingHorizontal: 32,
+    paddingVertical: 18,
+    borderRadius: 16,
+    shadowColor: '#2563eb',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 5,
+    width: '100%',
+    maxWidth: 320,
+    alignItems: 'center',
+  },
+  submitRegButtonDisabled: {
+    backgroundColor: '#d1d5db',
+  },
+  submitRegButtonText: {
+    color: '#ffffff',
+    fontSize: 17,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  submitRegButtonTextDisabled: {
+    color: theme.textSecondary,
+  },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '100%',
+    maxWidth: 320,
+    marginBottom: 20,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#e5e7eb',
+  },
+  dividerText: {
+    marginHorizontal: 12,
+    fontSize: 13,
+    color: theme.textTertiary,
+    fontWeight: '500',
+  },
+  toggleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 24,
+    gap: 8,
+  },
+  toggleLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.textSecondary,
+  },
+  statsHeader: {
+    marginBottom: 24,
+    marginTop: 40,
+  },
+  statsHeaderContent: {
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  statsIconContainer: {
+    width: 96,
+    height: 96,
+    backgroundColor: theme.primary,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 24,
+    shadowColor: '#2563eb',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 12,
+  },
+  statsIcon: {
+    fontSize: 48,
+  },
+  statsAppName: {
+    fontSize: 36,
+    fontWeight: '700',
+    color: theme.text,
+    marginBottom: 12,
+  },
+  backButtonStats: {
+    marginBottom: 12,
+    alignSelf: 'flex-start',
+  },
+  backButtonText: {
+    fontSize: 16,
+    color: '#2563eb',
+    fontWeight: '600',
+  },
+  statsTitle: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: theme.text,
+    marginBottom: 4,
+    textAlign: 'center',
+  },
+  statsSubtitle: {
+    fontSize: 18,
+    color: theme.textSecondary,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: theme.textSecondary,
+  },
+  statsCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 24,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: theme.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  statsCardTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: theme.text,
+    marginBottom: 16,
+  },
+  statsCardSubtext: {
+    fontSize: 14,
+    color: theme.textSecondary,
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  statsStarsContainer: {
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  statsStarsValue: {
+    fontSize: 48,
+    fontWeight: '700',
+    color: theme.text,
+    marginBottom: 8,
+  },
+  statsStarsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  statsStar: {
+    fontSize: 32,
+    color: '#d1d5db',
+    marginRight: 4,
+  },
+  statsStarSelected: {
+    color: '#fbbf24',
+  },
+  tagStatRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+  },
+  tagStatLabel: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: theme.text,
+    flex: 1,
+  },
+  tagStatStars: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  tagStatValue: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.text,
+    minWidth: 30,
+  },
+  tagStatStarsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  tagStatStar: {
+    fontSize: 20,
+    color: '#d1d5db',
+    marginRight: 2,
+  },
+  tagStatStarSelected: {
+    color: '#fbbf24',
+  },
+  commentItem: {
+    marginBottom: 16,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+  },
+  commentHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  commentStars: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  commentStar: {
+    fontSize: 16,
+    color: '#d1d5db',
+    marginRight: 2,
+  },
+  commentStarSelected: {
+    color: '#fbbf24',
+  },
+  commentDate: {
+    fontSize: 12,
+    color: theme.textTertiary,
+  },
+  commentText: {
+    fontSize: 14,
+    color: theme.text,
+    lineHeight: 20,
+  },
+  noDataText: {
+    fontSize: 16,
+    color: theme.textSecondary,
+    textAlign: 'center',
+    padding: 20,
+  },
+  noTagRatingText: {
+    fontSize: 14,
+    color: theme.textTertiary,
+    fontStyle: 'italic',
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 24,
+    width: '100%',
+    maxWidth: 320,
+  },
+  dashboardButtonInline: {
+    flex: 1,
+    backgroundColor: theme.primary,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+    shadowColor: '#2563eb',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  dashboardButtonText: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  authButtonInline: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+    borderWidth: 2,
+    borderColor: theme.border,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  authButtonInlineText: {
+    color: '#2563eb',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  authButton: {
+    backgroundColor: '#ffffff',
+    borderWidth: 2,
+    borderColor: theme.border,
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginBottom: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  authButtonText: {
+    color: '#2563eb',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  hamburgerIcon: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    zIndex: 1000,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: theme.card,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: theme.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 10,
+  },
+});
+
 function AppContent() {
+  const { theme } = useTheme();
   const [permission, requestPermission] = useCameraPermissions();
+  
+  // Generate styles based on current theme
+  const styles = useMemo(() => getStyles(theme), [theme]);
   const [scanning, setScanning] = useState(false);
   const [viewMode, setViewMode] = useState<'rate' | 'stats'>('rate');
   const [currentScreen, setCurrentScreen] = useState<'home' | 'rate' | 'stats' | 'login' | 'profile' | 'dashboard'>('home');
@@ -72,6 +915,9 @@ function AppContent() {
   const [lastRatingId, setLastRatingId] = useState<string | null>(null);
   const [tipDeviceHash, setTipDeviceHash] = useState<string | null>(null);
   const [menuDrawerVisible, setMenuDrawerVisible] = useState(false);
+  const [showPointsNotification, setShowPointsNotification] = useState(false);
+  const [pointsEarned, setPointsEarned] = useState(0);
+  const [currentDeviceHash, setCurrentDeviceHash] = useState('');
 
   const queueKey = 'pending_ratings_v1';
 
@@ -113,6 +959,8 @@ function AppContent() {
   useEffect(() => {
     // try to send any queued ratings at startup
     syncQueuedRatings();
+    // Get device hash once at startup
+    deviceHash.get().then(setCurrentDeviceHash);
   }, [syncQueuedRatings]);
 
   // Check for existing session on app start
@@ -136,7 +984,6 @@ function AppContent() {
   // Listen to auth state changes
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log('Auth state changed:', event, session?.user?.email || 'no user');
       const newUser = session?.user || null;
       setUser(newUser);
       
@@ -151,15 +998,15 @@ function AppContent() {
           setCurrentScreen('home');
         }
       } else {
-        // If user logs in (SIGNED_IN event) and we're on login screen, redirect to dashboard
+        // If user logs in (SIGNED_IN event) and we're on login screen, redirect to home
         if (event === 'SIGNED_IN' && currentScreen === 'login') {
-          console.log('Redirecting to dashboard after SIGNED_IN');
-          setCurrentScreen('dashboard');
+          console.log('Redirecting to home after SIGNED_IN');
+          setCurrentScreen('home');
         }
         // Also redirect if user exists and we're on login screen (fallback for any auth event except INITIAL_SESSION)
         else if (currentScreen === 'login' && newUser && event !== 'INITIAL_SESSION') {
-          console.log('Redirecting to dashboard (fallback)');
-          setCurrentScreen('dashboard');
+          console.log('Redirecting to home (fallback)');
+          setCurrentScreen('home');
         }
       }
     });
@@ -470,7 +1317,12 @@ function AppContent() {
     
     let deviceHashValue: string;
     try {
-      deviceHashValue = await deviceHash.get();
+      // Use user's auth ID if logged in, otherwise use device hash
+      if (user?.id) {
+        deviceHashValue = user.id;
+      } else {
+        deviceHashValue = await deviceHash.get();
+      }
     } catch (error) {
       setSubmitError('Unable to process rating. Please try again.');
       setSubmitLoading(false);
@@ -542,23 +1394,94 @@ function AppContent() {
           return;
         }
         
-        await enqueue(r);
-        const errorMessage = error.message?.includes('network') || error.message?.includes('fetch') || error.code === 'PGRST301'
-          ? 'No internet connection. Your rating has been saved and will be submitted automatically when you have a connection.'
-          : 'Unable to submit rating. Your rating has been saved and will be submitted when you have a connection.';
-        setSubmitError(errorMessage);
+        // Check if it's a network error or database error
+        const isNetworkError = error.message?.includes('network') || 
+                               error.message?.includes('fetch') || 
+                               error.code === 'PGRST301' ||
+                               error.message?.includes('Failed to fetch');
+        
+        if (isNetworkError) {
+          await enqueue(r);
+          setSubmitError('No internet connection. Your rating has been saved and will be submitted automatically when you have a connection.');
+        } else {
+          // Database or other error - show the actual error
+          console.error('Database error:', error);
+          setSubmitError(`Error: ${error.message || 'Unable to submit rating'}`);
+        }
         setSubmitLoading(false);
         return;
       }
       
       // Success!
       success = true;
+      
+      // Award points directly
+      if (ratingData?.id) {
+        try {
+          const hash = await deviceHash.get();
+          
+          // Get points rule
+          const { data: settings } = await supabase
+            .from('points_settings')
+            .select('points_per_rating')
+            .single();
+          
+          const pointsToAward = settings?.points_per_rating || 10;
+          
+          // Get current points
+          const { data: currentPoints } = await supabase
+            .from('user_points')
+            .select('available_points, lifetime_points')
+            .eq('device_hash', hash)
+            .maybeSingle();
+          
+          const newAvailable = (currentPoints?.available_points || 0) + pointsToAward;
+          const newLifetime = (currentPoints?.lifetime_points || 0) + pointsToAward;
+          
+          // Upsert user_points
+          await supabase
+            .from('user_points')
+            .upsert({
+              device_hash: hash,
+              available_points: newAvailable,
+              lifetime_points: newLifetime,
+              updated_at: new Date().toISOString()
+            }, { onConflict: 'device_hash' });
+          
+          // Record transaction
+          await supabase
+            .from('points_transaction')
+            .insert({
+              device_hash: hash,
+              points_amount: pointsToAward,
+              transaction_type: 'earn_rating',
+              rating_id: ratingData.id,
+              description: 'Rating submitted'
+            });
+          
+          // Show notification
+          setPointsEarned(pointsToAward);
+          setShowPointsNotification(true);
+        } catch (err) {
+          console.error('Error awarding points:', err);
+          // Don't block the thank you screen if points fail
+        }
+      }
     } catch (err) {
-      await enqueue(r);
-      const errorMessage = err instanceof Error && (err.message.includes('network') || err.message.includes('fetch'))
-        ? 'No internet connection. Your rating has been saved and will be submitted automatically when you have a connection.'
-        : 'Unable to submit rating. Your rating has been saved and will be submitted when you have a connection.';
-      setSubmitError(errorMessage);
+      console.error('Submit error:', err);
+      const isNetworkError = err instanceof Error && 
+                             (err.message.includes('network') || 
+                              err.message.includes('fetch') ||
+                              err.message.includes('Failed to fetch'));
+      
+      if (isNetworkError) {
+        await enqueue(r);
+        setSubmitError('No internet connection. Your rating has been saved and will be submitted automatically when you have a connection.');
+      } else {
+        // Show actual error for debugging
+        const errorMsg = err instanceof Error ? err.message : 'Unknown error occurred';
+        setSubmitError(`Error: ${errorMsg}`);
+      }
       setSubmitLoading(false);
       return;
     } finally {
@@ -637,6 +1560,42 @@ function AppContent() {
     } catch (err) {
       console.error('Error logging out:', err);
     }
+  };
+
+  // Helper component for star rating rows
+  const StarRow = ({ value, onChange }: { value: number; onChange: (n: number) => void }) => {
+    return (
+      <View style={styles.starRow}>
+        {[1, 2, 3, 4, 5].map((n) => (
+          <TouchableOpacity key={n} onPress={() => onChange(n)} style={styles.starButton}>
+            <Text style={[styles.star, value >= n && styles.starSelected]}>★</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+    );
+  };
+
+  // Helper component for duplicate rating message
+  const DuplicateRatingMessage = ({ onDismiss }: { onDismiss: () => void }) => {
+    return (
+      <View style={styles.duplicateRatingContainer}>
+        <View style={styles.duplicateRatingIcon}>
+          <Text style={styles.duplicateRatingIconText}>✓</Text>
+        </View>
+        <View style={styles.duplicateRatingContent}>
+          <Text style={styles.duplicateRatingTitle}>Thank you for your feedback!</Text>
+          <Text style={styles.duplicateRatingMessage}>
+            You've already rated this vehicle. You can submit another rating in an hour.
+          </Text>
+        </View>
+        <Pressable
+          onPress={onDismiss}
+          style={styles.duplicateRatingDismiss}
+        >
+          <Text style={styles.duplicateRatingDismissText}>Got it</Text>
+        </Pressable>
+      </View>
+    );
   };
 
   if (thanks) {
@@ -1196,6 +2155,13 @@ function AppContent() {
         onLogout={handleMenuLogout}
         currentScreen={currentScreen}
       />
+
+      {/* Points Earned Notification */}
+      <PointsEarnedNotification
+        visible={showPointsNotification}
+        pointsEarned={pointsEarned}
+        onDismiss={() => setShowPointsNotification(false)}
+      />
     </View>
   );
 }
@@ -1207,884 +2173,16 @@ export default function App() {
   // if (StripeProvider && stripePublishableKey) {
   //   return (
   //     <StripeProvider publishableKey={stripePublishableKey}>
-  //       <AppContent />
+  //       <ThemeProvider>
+  //         <AppContent />
+  //       </ThemeProvider>
   //     </StripeProvider>
   //   );
   // }
   
-  return <AppContent />;
-}
-
-function StarRow({ value, onChange }: { value: number; onChange: (n: number) => void }) {
   return (
-    <View style={styles.starRow}>
-      {[1, 2, 3, 4, 5].map((n) => (
-        <TouchableOpacity key={n} onPress={() => onChange(n)} style={styles.starButton}>
-          <Text style={[styles.star, value >= n && styles.starSelected]}>★</Text>
-        </TouchableOpacity>
-      ))}
-    </View>
+    <ThemeProvider>
+      <AppContent />
+    </ThemeProvider>
   );
 }
-
-function DuplicateRatingMessage({ onDismiss }: { onDismiss: () => void }) {
-  return (
-    <View style={styles.duplicateRatingContainer}>
-      <View style={styles.duplicateRatingIcon}>
-        <Text style={styles.duplicateRatingIconText}>✓</Text>
-      </View>
-      <View style={styles.duplicateRatingContent}>
-        <Text style={styles.duplicateRatingTitle}>Thank you for your feedback!</Text>
-        <Text style={styles.duplicateRatingMessage}>
-          You've already rated this vehicle. You can submit another rating in an hour.
-        </Text>
-      </View>
-      <Pressable
-        onPress={onDismiss}
-        style={styles.duplicateRatingDismiss}
-      >
-        <Text style={styles.duplicateRatingDismissText}>Got it</Text>
-      </Pressable>
-    </View>
-  );
-}
-
-
-const styles = StyleSheet.create({
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 24,
-  },
-  ratingPageContainer: {
-    flex: 1,
-    backgroundColor: '#f8fafc',
-  },
-  scrollContainer: {
-    flex: 1,
-    backgroundColor: '#f8fafc',
-  },
-  container: {
-    backgroundColor: '#f8fafc',
-    padding: 20,
-    paddingTop: 140,
-    paddingBottom: 100,
-  },
-  statsContainer: {
-    backgroundColor: '#f8fafc',
-    padding: 20,
-    paddingTop: 20,
-    paddingBottom: 100,
-  },
-  homeContainer: {
-    flex: 1,
-    backgroundColor: '#f0f4f8',
-  },
-  homeScrollContainer: {
-    flex: 1,
-  },
-  homeScrollContent: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 24,
-    paddingBottom: 100,
-    minHeight: '100%',
-  },
-  homeContent: {
-    alignItems: 'center',
-    marginBottom: 32,
-  },
-  iconContainer: {
-    width: 80,
-    height: 80,
-    backgroundColor: '#2563eb',
-    borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-    shadowColor: '#2563eb',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  icon: {
-    fontSize: 40,
-  },
-  header: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: '#111827',
-    marginBottom: 8,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#111827',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#6b7280',
-    textAlign: 'center',
-    maxWidth: 280,
-    marginBottom: 12,
-  },
-  scanButton: {
-    backgroundColor: '#2563eb',
-    paddingHorizontal: 32,
-    paddingVertical: 18,
-    borderRadius: 16,
-    shadowColor: '#2563eb',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-    width: '100%',
-    maxWidth: 320,
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  scanButtonText: {
-    color: '#ffffff',
-    fontSize: 17,
-    fontWeight: '600',
-  },
-  successIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#d1fae5',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 24,
-  },
-  checkmark: {
-    fontSize: 48,
-    color: '#10b981',
-  },
-  headerContainer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: '#f8fafc',
-    paddingTop: 60,
-    paddingHorizontal: 20,
-    paddingBottom: 16,
-    zIndex: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  ratingHeader: {
-    marginBottom: 0,
-  },
-  ratingTitle: {
-    fontSize: 32,
-    fontWeight: '800',
-    color: '#0f172a',
-    marginBottom: 6,
-    letterSpacing: -0.5,
-  },
-  ratingSubtitle: {
-    fontSize: 15,
-    color: '#64748b',
-    fontWeight: '500',
-  },
-  section: {
-    marginBottom: 28,
-    width: '100%',
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 16,
-  },
-  starRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 8,
-  },
-  starButton: {
-    padding: 10,
-  },
-  star: {
-    fontSize: 52,
-    color: '#e2e8f0',
-    marginRight: 6,
-    textShadowColor: 'rgba(0, 0, 0, 0.1)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
-  },
-  starSelected: {
-    color: '#fbbf24',
-    textShadowColor: 'rgba(251, 191, 36, 0.4)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
-  },
-  tagRatingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-    paddingVertical: 10,
-    paddingHorizontal: 4,
-    borderRadius: 12,
-    backgroundColor: '#ffffff',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  tagLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1e293b',
-    flex: 1,
-  },
-  tagStarRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  tagStarButton: {
-    padding: 4,
-  },
-  tagStar: {
-    fontSize: 30,
-    color: '#e2e8f0',
-    marginRight: 3,
-  },
-  tagStarSelected: {
-    color: '#fbbf24',
-    textShadowColor: 'rgba(251, 191, 36, 0.3)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
-  },
-  input: {
-    backgroundColor: '#ffffff',
-    borderWidth: 1.5,
-    borderColor: '#e2e8f0',
-    borderRadius: 16,
-    padding: 18,
-    fontSize: 16,
-    color: '#0f172a',
-    minHeight: 110,
-    textAlignVertical: 'top',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  charCount: {
-    fontSize: 12,
-    color: '#9ca3af',
-    marginTop: 8,
-    textAlign: 'right',
-  },
-  submitButtonSpacer: {
-    height: 20,
-  },
-  footerContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: '#f8fafc',
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 32,
-    borderTopWidth: 1,
-    borderTopColor: '#e2e8f0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  submitButton: {
-    backgroundColor: '#2563eb',
-    paddingHorizontal: 32,
-    paddingVertical: 22,
-    borderRadius: 16,
-    shadowColor: '#2563eb',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-    width: '100%',
-  },
-  submitButtonDisabled: {
-    backgroundColor: '#d1d5db',
-  },
-  submitButtonText: {
-    color: '#ffffff',
-    fontSize: 18,
-    fontWeight: '700',
-    textAlign: 'center',
-  },
-  submitButtonTextDisabled: {
-    color: '#6b7280',
-  },
-  button: {
-    backgroundColor: '#2563eb',
-    paddingHorizontal: 32,
-    paddingVertical: 18,
-    borderRadius: 16,
-    shadowColor: '#2563eb',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  buttonText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  cameraContainer: {
-    flex: 1,
-    backgroundColor: '#000000',
-  },
-  cameraBg: {
-    backgroundColor: '#111827',
-  },
-  padding: {
-    padding: 24,
-  },
-  whiteText: {
-    color: '#ffffff',
-    fontSize: 18,
-  },
-  permissionTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    marginBottom: 16,
-    textAlign: 'center',
-  },
-  permissionSubtitle: {
-    fontSize: 16,
-    marginBottom: 32,
-    textAlign: 'center',
-    color: '#d1d5db',
-  },
-  cameraHeader: {
-    position: 'absolute',
-    top: 48,
-    left: 0,
-    right: 0,
-    paddingHorizontal: 24,
-  },
-  backButton: {
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    borderRadius: 20,
-    padding: 12,
-    alignSelf: 'flex-start',
-  },
-  cameraFooter: {
-    position: 'absolute',
-    bottom: 48,
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-  },
-  scanHint: {
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
-    borderRadius: 16,
-    padding: 24,
-  },
-  scanTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  scanSubtitle: {
-    fontSize: 14,
-    textAlign: 'center',
-    color: '#e5e7eb',
-  },
-  inputSection: {
-    width: '100%',
-    maxWidth: 320,
-    marginBottom: 20,
-  },
-  inputLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 16,
-    textAlign: 'center',
-  },
-  regInput: {
-    backgroundColor: '#ffffff',
-    borderWidth: 1.5,
-    borderColor: '#e2e8f0',
-    borderRadius: 12,
-    padding: 16,
-    fontSize: 16,
-    color: '#0f172a',
-    textAlign: 'center',
-    fontWeight: '600',
-    letterSpacing: 1,
-    marginBottom: 8,
-    width: '100%',
-    maxWidth: 320,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  regInputError: {
-    borderColor: '#ef4444',
-  },
-  errorText: {
-    fontSize: 12,
-    color: '#ef4444',
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  errorContainer: {
-    backgroundColor: '#fef2f2',
-    borderWidth: 1.5,
-    borderColor: '#fecaca',
-    borderRadius: 12,
-    padding: 14,
-    marginTop: 16,
-    marginBottom: 8,
-    maxWidth: 320,
-    width: '100%',
-    shadowColor: '#ef4444',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  duplicateRatingContainer: {
-    backgroundColor: '#f0fdf4',
-    borderWidth: 1.5,
-    borderColor: '#bbf7d0',
-    borderRadius: 16,
-    padding: 20,
-    marginTop: 20,
-    marginBottom: 20,
-    width: '100%',
-    shadowColor: '#10b981',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    elevation: 4,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-  },
-  duplicateRatingIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#d1fae5',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-    flexShrink: 0,
-  },
-  duplicateRatingIconText: {
-    fontSize: 24,
-    color: '#10b981',
-    fontWeight: '700',
-  },
-  duplicateRatingContent: {
-    flex: 1,
-  },
-  duplicateRatingTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#065f46',
-    marginBottom: 6,
-  },
-  duplicateRatingMessage: {
-    fontSize: 14,
-    color: '#047857',
-    lineHeight: 20,
-  },
-  duplicateRatingDismiss: {
-    marginLeft: 12,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    flexShrink: 0,
-  },
-  duplicateRatingDismissText: {
-    color: '#10b981',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  dismissErrorButton: {
-    marginTop: 8,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    alignSelf: 'center',
-  },
-  dismissErrorText: {
-    color: '#ef4444',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  submitRegButtonSpacer: {
-    height: 20,
-  },
-  homeFooterContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: '#f0f4f8',
-    paddingHorizontal: 24,
-    paddingTop: 12,
-    paddingBottom: 32,
-    borderTopWidth: 1,
-    borderTopColor: '#e2e8f0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 8,
-    alignItems: 'center',
-  },
-  submitRegButton: {
-    backgroundColor: '#2563eb',
-    paddingHorizontal: 32,
-    paddingVertical: 18,
-    borderRadius: 16,
-    shadowColor: '#2563eb',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 5,
-    width: '100%',
-    maxWidth: 320,
-    alignItems: 'center',
-  },
-  submitRegButtonDisabled: {
-    backgroundColor: '#d1d5db',
-  },
-  submitRegButtonText: {
-    color: '#ffffff',
-    fontSize: 17,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  submitRegButtonTextDisabled: {
-    color: '#6b7280',
-  },
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    width: '100%',
-    maxWidth: 320,
-    marginBottom: 20,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: '#e5e7eb',
-  },
-  dividerText: {
-    marginHorizontal: 12,
-    fontSize: 13,
-    color: '#9ca3af',
-    fontWeight: '500',
-  },
-  toggleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 24,
-    gap: 8,
-  },
-  toggleLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#6b7280',
-  },
-  statsHeader: {
-    marginBottom: 24,
-    marginTop: 40,
-  },
-  statsHeaderContent: {
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  statsIconContainer: {
-    width: 96,
-    height: 96,
-    backgroundColor: '#2563eb',
-    borderRadius: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 24,
-    shadowColor: '#2563eb',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 12,
-  },
-  statsIcon: {
-    fontSize: 48,
-  },
-  statsAppName: {
-    fontSize: 36,
-    fontWeight: '700',
-    color: '#111827',
-    marginBottom: 12,
-  },
-  backButtonStats: {
-    marginBottom: 12,
-    alignSelf: 'flex-start',
-  },
-  backButtonText: {
-    fontSize: 16,
-    color: '#2563eb',
-    fontWeight: '600',
-  },
-  statsTitle: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#111827',
-    marginBottom: 4,
-    textAlign: 'center',
-  },
-  statsSubtitle: {
-    fontSize: 18,
-    color: '#6b7280',
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: '#6b7280',
-  },
-  statsCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 24,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  statsCardTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#111827',
-    marginBottom: 16,
-  },
-  statsCardSubtext: {
-    fontSize: 14,
-    color: '#6b7280',
-    marginTop: 8,
-    textAlign: 'center',
-  },
-  statsStarsContainer: {
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  statsStarsValue: {
-    fontSize: 48,
-    fontWeight: '700',
-    color: '#111827',
-    marginBottom: 8,
-  },
-  statsStarsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  statsStar: {
-    fontSize: 32,
-    color: '#d1d5db',
-    marginRight: 4,
-  },
-  statsStarSelected: {
-    color: '#fbbf24',
-  },
-  tagStatRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
-  },
-  tagStatLabel: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#374151',
-    flex: 1,
-  },
-  tagStatStars: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  tagStatValue: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
-    minWidth: 30,
-  },
-  tagStatStarsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  tagStatStar: {
-    fontSize: 20,
-    color: '#d1d5db',
-    marginRight: 2,
-  },
-  tagStatStarSelected: {
-    color: '#fbbf24',
-  },
-  commentItem: {
-    marginBottom: 16,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
-  },
-  commentHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  commentStars: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  commentStar: {
-    fontSize: 16,
-    color: '#d1d5db',
-    marginRight: 2,
-  },
-  commentStarSelected: {
-    color: '#fbbf24',
-  },
-  commentDate: {
-    fontSize: 12,
-    color: '#9ca3af',
-  },
-  commentText: {
-    fontSize: 14,
-    color: '#374151',
-    lineHeight: 20,
-  },
-  noDataText: {
-    fontSize: 16,
-    color: '#6b7280',
-    textAlign: 'center',
-    padding: 20,
-  },
-  noTagRatingText: {
-    fontSize: 14,
-    color: '#9ca3af',
-    fontStyle: 'italic',
-  },
-  buttonRow: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 24,
-    width: '100%',
-    maxWidth: 320,
-  },
-  dashboardButtonInline: {
-    flex: 1,
-    backgroundColor: '#2563eb',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 10,
-    alignItems: 'center',
-    shadowColor: '#2563eb',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  dashboardButtonText: {
-    color: '#ffffff',
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  authButtonInline: {
-    flex: 1,
-    backgroundColor: '#ffffff',
-    borderWidth: 2,
-    borderColor: '#e2e8f0',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 10,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.03,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  authButtonInlineText: {
-    color: '#2563eb',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  authButton: {
-    backgroundColor: '#ffffff',
-    borderWidth: 2,
-    borderColor: '#e2e8f0',
-    paddingHorizontal: 24,
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginBottom: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.03,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  authButtonText: {
-    color: '#2563eb',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  hamburgerIcon: {
-    position: 'absolute',
-    top: 50,
-    right: 20,
-    zIndex: 100,
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#ffffff',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-});
-
-
-
-

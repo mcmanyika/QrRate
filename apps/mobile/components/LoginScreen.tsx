@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { StyleSheet, Text, View, TextInput, TouchableOpacity, Pressable, ScrollView, ActivityIndicator } from 'react-native';
 import { supabase } from '../lib/supabase';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface LoginScreenProps {
   onLoginSuccess: () => void;
@@ -8,6 +9,10 @@ interface LoginScreenProps {
 }
 
 export default function LoginScreen({ onLoginSuccess, onBack }: LoginScreenProps) {
+  const { theme } = useTheme();
+  const styles = useMemo(() => getStyles(theme), [theme]);
+  
+  const [mode, setMode] = useState<'login' | 'signup'>('login');
   const [loginMethod, setLoginMethod] = useState<'email' | 'phone'>('email');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -16,6 +21,43 @@ export default function LoginScreen({ onLoginSuccess, onBack }: LoginScreenProps
   const [otpSent, setOtpSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const handleEmailSignup = async () => {
+    if (!email.trim() || !password.trim()) {
+      setError('Please enter both email and password');
+      return;
+    }
+
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters');
+      return;
+    }
+
+    setError(null);
+    setLoading(true);
+
+    try {
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email: email.trim(),
+        password: password.trim(),
+      });
+
+      if (signUpError) {
+        setError(signUpError.message);
+        setLoading(false);
+        return;
+      }
+
+      if (data.user) {
+        setLoading(false);
+        // Call onLoginSuccess - the auth state change listener will handle redirect
+        onLoginSuccess();
+      }
+    } catch (err) {
+      setError('An unexpected error occurred');
+      setLoading(false);
+    }
+  };
 
   const handleEmailLogin = async () => {
     if (!email.trim() || !password.trim()) {
@@ -120,8 +162,10 @@ export default function LoginScreen({ onLoginSuccess, onBack }: LoginScreenProps
         <Pressable onPress={onBack} style={styles.backButton}>
           <Text style={styles.backButtonText}>← Back</Text>
         </Pressable>
-        <Text style={styles.title}>Login</Text>
-        <Text style={styles.subtitle}>Sign in to view your rating history</Text>
+        <Text style={styles.title}>{mode === 'login' ? 'Login' : 'Create Account'}</Text>
+        <Text style={styles.subtitle}>
+          {mode === 'login' ? 'Sign in to view your rating history' : 'Create an account to track your ratings'}
+        </Text>
       </View>
 
       {/* Login Method Toggle */}
@@ -199,15 +243,32 @@ export default function LoginScreen({ onLoginSuccess, onBack }: LoginScreenProps
           </View>
 
           <Pressable
-            onPress={handleEmailLogin}
+            onPress={mode === 'login' ? handleEmailLogin : handleEmailSignup}
             disabled={loading}
             style={[styles.loginButton, loading && styles.loginButtonDisabled]}
           >
             {loading ? (
               <ActivityIndicator size="small" color="#ffffff" />
             ) : (
-              <Text style={styles.loginButtonText}>Sign In</Text>
+              <Text style={styles.loginButtonText}>
+                {mode === 'login' ? 'Sign In' : 'Create Account'}
+              </Text>
             )}
+          </Pressable>
+
+          {/* Toggle between Login and Sign Up */}
+          <Pressable
+            onPress={() => {
+              setMode(mode === 'login' ? 'signup' : 'login');
+              setError(null);
+            }}
+            style={styles.toggleModeButton}
+          >
+            <Text style={styles.toggleModeText}>
+              {mode === 'login' 
+                ? "Don't have an account? Create one" 
+                : 'Already have an account? Sign in'}
+            </Text>
           </Pressable>
         </View>
       )}
@@ -295,10 +356,10 @@ export default function LoginScreen({ onLoginSuccess, onBack }: LoginScreenProps
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (theme: any) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f0f4f8',
+    backgroundColor: theme.background,
   },
   content: {
     padding: 24,
@@ -313,22 +374,22 @@ const styles = StyleSheet.create({
   },
   backButtonText: {
     fontSize: 16,
-    color: '#2563eb',
+    color: theme.primary,
     fontWeight: '600',
   },
   title: {
     fontSize: 36,
     fontWeight: '700',
-    color: '#111827',
+    color: theme.text,
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
-    color: '#6b7280',
+    color: theme.textSecondary,
   },
   toggleContainer: {
     flexDirection: 'row',
-    backgroundColor: '#ffffff',
+    backgroundColor: theme.card,
     borderRadius: 12,
     padding: 4,
     marginBottom: 24,
@@ -346,12 +407,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   toggleButtonActive: {
-    backgroundColor: '#2563eb',
+    backgroundColor: theme.primary,
   },
   toggleButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#6b7280',
+    color: theme.textSecondary,
   },
   toggleButtonTextActive: {
     color: '#ffffff',
@@ -369,22 +430,22 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   input: {
-    backgroundColor: '#ffffff',
+    backgroundColor: theme.card,
     borderWidth: 2,
-    borderColor: '#e2e8f0',
+    borderColor: theme.border,
     borderRadius: 12,
     padding: 16,
     fontSize: 16,
-    color: '#0f172a',
+    color: theme.text,
   },
   otpHint: {
     fontSize: 12,
-    color: '#6b7280',
+    color: theme.textSecondary,
     marginTop: 8,
     textAlign: 'center',
   },
   loginButton: {
-    backgroundColor: '#2563eb',
+    backgroundColor: theme.primary,
     paddingVertical: 18,
     borderRadius: 12,
     alignItems: 'center',
@@ -404,18 +465,28 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
   },
+  toggleModeButton: {
+    marginTop: 20,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  toggleModeText: {
+    color: theme.primary,
+    fontSize: 15,
+    fontWeight: '600',
+  },
   resendButton: {
     marginTop: 16,
     paddingVertical: 12,
     alignItems: 'center',
   },
   resendButtonText: {
-    color: '#2563eb',
+    color: theme.primary,
     fontSize: 14,
     fontWeight: '600',
   },
   errorContainer: {
-    backgroundColor: '#fef2f2',
+    backgroundColor: theme.errorBg,
     borderWidth: 1.5,
     borderColor: '#fecaca',
     borderRadius: 12,
@@ -424,7 +495,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 14,
-    color: '#ef4444',
+    color: theme.error,
     textAlign: 'center',
   },
 });

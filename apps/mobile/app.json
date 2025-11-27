@@ -13,7 +13,8 @@
     },
     "userInterfaceStyle": "automatic",
     "updates": {
-      "enabled": true
+      "enabled": true,
+      "url": "https://u.expo.dev/5df5d4c9-77a6-471c-99af-a27ef6e1d784"
     },
     "assetBundlePatterns": [
       "**/*"
@@ -23,9 +24,22 @@
       "permissions": [
         "CAMERA",
         "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "CAMERA",
+        "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO"
       ],
       "intentFilters": [
+        {
+          "action": "VIEW",
+          "data": {
+            "scheme": "kombirate"
+          },
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        },
         {
           "action": "VIEW",
           "data": {
@@ -46,6 +60,10 @@
         "projectId": "5df5d4c9-77a6-471c-99af-a27ef6e1d784"
       }
     },
-    "owner": "partsonm"
+    "owner": "partsonm",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "ios": {}
   }
 }
