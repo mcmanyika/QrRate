@@ -13,12 +13,8 @@ export default function LoginScreen({ onLoginSuccess, onBack }: LoginScreenProps
   const styles = useMemo(() => getStyles(theme), [theme]);
   
   const [mode, setMode] = useState<'login' | 'signup'>('login');
-  const [loginMethod, setLoginMethod] = useState<'email' | 'phone'>('email');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [phone, setPhone] = useState('');
-  const [otp, setOtp] = useState('');
-  const [otpSent, setOtpSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -91,67 +87,6 @@ export default function LoginScreen({ onLoginSuccess, onBack }: LoginScreenProps
     }
   };
 
-  const handleSendOTP = async () => {
-    if (!phone.trim()) {
-      setError('Please enter your phone number');
-      return;
-    }
-
-    setError(null);
-    setLoading(true);
-
-    try {
-      const { error: otpError } = await supabase.auth.signInWithOtp({
-        phone: phone.trim(),
-      });
-
-      if (otpError) {
-        setError(otpError.message);
-        setLoading(false);
-        return;
-      }
-
-      setOtpSent(true);
-      setLoading(false);
-    } catch (err) {
-      setError('An unexpected error occurred');
-      setLoading(false);
-    }
-  };
-
-  const handleVerifyOTP = async () => {
-    if (!otp.trim()) {
-      setError('Please enter the OTP code');
-      return;
-    }
-
-    setError(null);
-    setLoading(true);
-
-    try {
-      const { data, error: verifyError } = await supabase.auth.verifyOtp({
-        phone: phone.trim(),
-        token: otp.trim(),
-        type: 'sms',
-      });
-
-      if (verifyError) {
-        setError(verifyError.message);
-        setLoading(false);
-        return;
-      }
-
-      if (data.user) {
-        setLoading(false);
-        // Call onLoginSuccess - the auth state change listener will handle redirect
-        onLoginSuccess();
-      }
-    } catch (err) {
-      setError('An unexpected error occurred');
-      setLoading(false);
-    }
-  };
-
   return (
     <ScrollView 
       style={styles.container}
@@ -168,36 +103,6 @@ export default function LoginScreen({ onLoginSuccess, onBack }: LoginScreenProps
         </Text>
       </View>
 
-      {/* Login Method Toggle */}
-      <View style={styles.toggleContainer}>
-        <Pressable
-          onPress={() => {
-            setLoginMethod('email');
-            setError(null);
-            setOtpSent(false);
-            setOtp('');
-          }}
-          style={[styles.toggleButton, loginMethod === 'email' && styles.toggleButtonActive]}
-        >
-          <Text style={[styles.toggleButtonText, loginMethod === 'email' && styles.toggleButtonTextActive]}>
-            Email
-          </Text>
-        </Pressable>
-        <Pressable
-          onPress={() => {
-            setLoginMethod('phone');
-            setError(null);
-            setOtpSent(false);
-            setOtp('');
-          }}
-          style={[styles.toggleButton, loginMethod === 'phone' && styles.toggleButtonActive]}
-        >
-          <Text style={[styles.toggleButtonText, loginMethod === 'phone' && styles.toggleButtonTextActive]}>
-            Phone
-          </Text>
-        </Pressable>
-      </View>
-
       {/* Error Message */}
       {error && (
         <View style={styles.errorContainer}>
@@ -206,7 +111,7 @@ export default function LoginScreen({ onLoginSuccess, onBack }: LoginScreenProps
       )}
 
       {/* Email/Password Form */}
-      {loginMethod === 'email' && (
+      {(
         <View style={styles.form}>
           <View style={styles.inputSection}>
             <Text style={styles.inputLabel}>Email</Text>
@@ -270,86 +175,6 @@ export default function LoginScreen({ onLoginSuccess, onBack }: LoginScreenProps
                 : 'Already have an account? Sign in'}
             </Text>
           </Pressable>
-        </View>
-      )}
-
-      {/* Phone/OTP Form */}
-      {loginMethod === 'phone' && (
-        <View style={styles.form}>
-          {!otpSent ? (
-            <>
-              <View style={styles.inputSection}>
-                <Text style={styles.inputLabel}>Phone Number</Text>
-                <TextInput
-                  placeholder="e.g., +263771234567"
-                  value={phone}
-                  onChangeText={(text) => {
-                    setPhone(text);
-                    setError(null);
-                  }}
-                  style={styles.input}
-                  placeholderTextColor="#9ca3af"
-                  keyboardType="phone-pad"
-                  autoCorrect={false}
-                />
-              </View>
-
-              <Pressable
-                onPress={handleSendOTP}
-                disabled={loading}
-                style={[styles.loginButton, loading && styles.loginButtonDisabled]}
-              >
-                {loading ? (
-                  <ActivityIndicator size="small" color="#ffffff" />
-                ) : (
-                  <Text style={styles.loginButtonText}>Send OTP</Text>
-                )}
-              </Pressable>
-            </>
-          ) : (
-            <>
-              <View style={styles.inputSection}>
-                <Text style={styles.inputLabel}>Enter OTP Code</Text>
-                <TextInput
-                  placeholder="Enter 6-digit code"
-                  value={otp}
-                  onChangeText={(text) => {
-                    setOtp(text);
-                    setError(null);
-                  }}
-                  style={styles.input}
-                  placeholderTextColor="#9ca3af"
-                  keyboardType="number-pad"
-                  maxLength={6}
-                  autoCorrect={false}
-                />
-                <Text style={styles.otpHint}>We sent a code to {phone}</Text>
-              </View>
-
-              <Pressable
-                onPress={handleVerifyOTP}
-                disabled={loading}
-                style={[styles.loginButton, loading && styles.loginButtonDisabled]}
-              >
-                {loading ? (
-                  <ActivityIndicator size="small" color="#ffffff" />
-                ) : (
-                  <Text style={styles.loginButtonText}>Verify OTP</Text>
-                )}
-              </Pressable>
-
-              <Pressable
-                onPress={() => {
-                  setOtpSent(false);
-                  setOtp('');
-                  setError(null);
-                }}
-                style={styles.resendButton}
-              >
-                <Text style={styles.resendButtonText}>Change phone number</Text>
-              </Pressable>
-            </>
-          )}
         </View>
       )}
     </ScrollView>
