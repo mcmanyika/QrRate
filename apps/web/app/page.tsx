@@ -4,7 +4,7 @@ import { useCallback } from 'react'
 import { FaTruck, FaStar, FaChartBar, FaGift } from 'react-icons/fa'
 
 // Android APK download URL
-const ANDROID_DOWNLOAD_URL = 'https://expo.dev/artifacts/eas/r9xrb8NjQebnsKmyjtgQGW.apk';
+const ANDROID_DOWNLOAD_URL = 'https://expo.dev/artifacts/eas/gui5qGWGoSptoNxBcgJ7UF.apk';
 
 export default function Home() {
   // Track download and then redirect to download URL
