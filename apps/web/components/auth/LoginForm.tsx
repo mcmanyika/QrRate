@@ -33,7 +33,7 @@ export default function LoginForm() {
       if (data.user) {
         // Wait a bit for session to be established
         await new Promise(resolve => setTimeout(resolve, 100))
-        window.location.href = '/dashboard'
+        window.location.href = '/'
       }
     } catch (err) {
       setError('An unexpected error occurred')
