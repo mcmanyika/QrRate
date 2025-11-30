@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Animated, Pressable, TouchableOpacity, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, Animated, Pressable, TouchableOpacity, Dimensions, Modal } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import { useTheme } from '../contexts/ThemeContext';
 
@@ -57,10 +57,6 @@ export default function MenuDrawer({
     }
   }, [visible, slideAnim, opacityAnim]);
 
-  if (!visible && slideAnim._value === DRAWER_WIDTH) {
-    return null;
-  }
-
   const handleNavigate = (screen: 'login' | 'dashboard' | 'profile' | 'home') => {
     onNavigate(screen);
     onClose();
@@ -74,26 +70,33 @@ export default function MenuDrawer({
   const dynamicStyles = getStyles(theme);
 
   return (
-    <View style={dynamicStyles.container} pointerEvents={visible ? 'auto' : 'none'}>
-      {/* Backdrop */}
-      <Pressable style={StyleSheet.absoluteFill} onPress={onClose}>
+    <Modal
+      visible={visible}
+      transparent={true}
+      animationType="none"
+      statusBarTranslucent={true}
+      onRequestClose={onClose}
+    >
+      <View style={dynamicStyles.container} pointerEvents={visible ? 'auto' : 'none'}>
+        {/* Backdrop */}
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose}>
+          <Animated.View 
+            style={[
+              dynamicStyles.backdrop,
+              { opacity: opacityAnim }
+            ]} 
+          />
+        </Pressable>
+
+        {/* Drawer */}
         <Animated.View 
           style={[
-            dynamicStyles.backdrop,
-            { opacity: opacityAnim }
-          ]} 
-        />
-      </Pressable>
-
-      {/* Drawer */}
-      <Animated.View 
-        style={[
-          dynamicStyles.drawer,
-          {
-            transform: [{ translateX: slideAnim }]
-          }
-        ]}
-      >
+            dynamicStyles.drawer,
+            {
+              transform: [{ translateX: slideAnim }]
+            }
+          ]}
+        >
         {/* Header */}
         <View style={dynamicStyles.header}>
           <Text style={dynamicStyles.headerTitle}>Menu</Text>
@@ -189,7 +192,8 @@ export default function MenuDrawer({
           </View>
         </View>
       </Animated.View>
-    </View>
+      </View>
+    </Modal>
   );
 }
 

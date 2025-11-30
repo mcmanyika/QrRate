@@ -9,6 +9,7 @@ import UserProfileScreen from './components/UserProfileScreen';
 import RiderDashboard from './components/RiderDashboard';
 import MenuDrawer from './components/MenuDrawer';
 import PointsEarnedNotification from './components/PointsEarnedNotification';
+import SplashScreen from './components/SplashScreen';
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 // Stripe/Tipping disabled - imports removed to avoid build issues
 // To re-enable: uncomment imports and add @stripe/stripe-react-native to package.json
@@ -896,6 +897,7 @@ function AppContent() {
   const [currentScreen, setCurrentScreen] = useState<'home' | 'rate' | 'stats' | 'login' | 'profile' | 'dashboard'>('home');
   const [user, setUser] = useState<any>(null);
   const [loadingAuth, setLoadingAuth] = useState(true);
+  const [showSplash, setShowSplash] = useState(true);
   const [vehicleId, setVehicleId] = useState<string | null>(null);
   const [routeId, setRouteId] = useState<string | null>(null);
   const [regNumber, setRegNumber] = useState('');
@@ -1735,6 +1737,11 @@ function AppContent() {
         />
       </>
     );
+  }
+
+  // Show splash screen first
+  if (showSplash) {
+    return <SplashScreen onFinish={() => setShowSplash(false)} />;
   }
 
   // Show loading while checking auth
