@@ -7,7 +7,6 @@ import { supabase } from './lib/supabase';
 import LoginScreen from './components/LoginScreen';
 import UserProfileScreen from './components/UserProfileScreen';
 import RiderDashboard from './components/RiderDashboard';
-import MenuDrawer from './components/MenuDrawer';
 import PointsEarnedNotification from './components/PointsEarnedNotification';
 import SplashScreen from './components/SplashScreen';
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
@@ -549,21 +548,38 @@ const getStyles = (theme: any) => StyleSheet.create({
     right: 0,
     backgroundColor: theme.background,
     paddingHorizontal: 24,
-    paddingTop: 12,
-    paddingBottom: 32,
+    paddingVertical: 16,
     borderTopWidth: 1,
     borderTopColor: theme.border,
     shadowColor: theme.shadow,
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.05,
     shadowRadius: 8,
-    elevation: 8,
+    elevation: 10,
+    zIndex: 1000,
+  },
+  quickLinksContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
     alignItems: 'center',
+    width: '100%',
+  },
+  quickLink: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+  },
+  quickLinkText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: theme.textSecondary,
+    marginTop: 4,
   },
   submitRegButton: {
     backgroundColor: theme.primary,
     paddingHorizontal: 32,
-    paddingVertical: 18,
+    paddingVertical: 16,
     borderRadius: 16,
     shadowColor: '#2563eb',
     shadowOffset: { width: 0, height: 2 },
@@ -573,6 +589,7 @@ const getStyles = (theme: any) => StyleSheet.create({
     width: '100%',
     maxWidth: 320,
     alignItems: 'center',
+    marginTop: 40,
   },
   submitRegButtonDisabled: {
     backgroundColor: '#d1d5db',
@@ -867,7 +884,7 @@ const getStyles = (theme: any) => StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  hamburgerIcon: {
+  themeToggleButton: {
     position: 'absolute',
     top: 50,
     right: 20,
@@ -887,7 +904,7 @@ const getStyles = (theme: any) => StyleSheet.create({
 });
 
 function AppContent() {
-  const { theme } = useTheme();
+  const { theme, isDark, toggleTheme } = useTheme();
   const [permission, requestPermission] = useCameraPermissions();
   
   // Generate styles based on current theme
@@ -916,7 +933,6 @@ function AppContent() {
   const [showTipPrompt, setShowTipPrompt] = useState(false);
   const [lastRatingId, setLastRatingId] = useState<string | null>(null);
   const [tipDeviceHash, setTipDeviceHash] = useState<string | null>(null);
-  const [menuDrawerVisible, setMenuDrawerVisible] = useState(false);
   const [showPointsNotification, setShowPointsNotification] = useState(false);
   const [pointsEarned, setPointsEarned] = useState(0);
   const [currentDeviceHash, setCurrentDeviceHash] = useState('');
@@ -1564,6 +1580,68 @@ function AppContent() {
     }
   };
 
+  // Theme toggle button component
+  const ThemeToggleButton = () => (
+    <TouchableOpacity 
+      style={styles.themeToggleButton}
+      onPress={toggleTheme}
+    >
+      <FontAwesome 
+        name={isDark ? 'sun-o' : 'moon-o'} 
+        size={20} 
+        color={theme.iconColor} 
+      />
+    </TouchableOpacity>
+  );
+
+  // Reusable footer component
+  const QuickLinksFooter = () => (
+    <View style={styles.homeFooterContainer}>
+      <View style={styles.quickLinksContainer}>
+        {user ? (
+          <>
+            <TouchableOpacity 
+              style={styles.quickLink}
+              onPress={() => handleMenuNavigate('home')}
+            >
+              <FontAwesome name="home" size={18} color={theme.iconColor} />
+              <Text style={styles.quickLinkText}>Home</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.quickLink}
+              onPress={() => handleMenuNavigate('dashboard')}
+            >
+              <FontAwesome name="bar-chart" size={18} color={theme.iconColor} />
+              <Text style={styles.quickLinkText}>Dashboard</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.quickLink}
+              onPress={() => handleMenuNavigate('profile')}
+            >
+              <FontAwesome name="user" size={18} color={theme.iconColor} />
+              <Text style={styles.quickLinkText}>Profile</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.quickLink}
+              onPress={handleMenuLogout}
+            >
+              <FontAwesome name="sign-out" size={18} color={theme.error} />
+              <Text style={[styles.quickLinkText, { color: theme.error }]}>Logout</Text>
+            </TouchableOpacity>
+          </>
+        ) : (
+          <TouchableOpacity 
+            style={styles.quickLink}
+            onPress={() => handleMenuNavigate('login')}
+          >
+            <FontAwesome name="lock" size={18} color={theme.iconColor} />
+            <Text style={styles.quickLinkText}>Login</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    </View>
+  );
+
   // Helper component for star rating rows
   const StarRow = ({ value, onChange }: { value: number; onChange: (n: number) => void }) => {
     return (
@@ -1684,36 +1762,32 @@ function AppContent() {
   // Show dashboard screen
   if (currentScreen === 'dashboard') {
     return (
-      <>
+      <View style={{ flex: 1 }}>
+        <ThemeToggleButton />
         <RiderDashboard
+          user={user}
           onLogout={() => {
             setUser(null);
             setCurrentScreen('home');
+          }}
+          onNavigateProfile={() => {
+            setCurrentScreen('profile');
           }}
           onRateVehicle={() => {
             setCurrentScreen('home');
           }}
           getDeviceHash={deviceHash.get}
-          onOpenMenu={() => setMenuDrawerVisible(true)}
         />
-        
-        {/* Menu Drawer */}
-        <MenuDrawer
-          visible={menuDrawerVisible}
-          onClose={() => setMenuDrawerVisible(false)}
-          user={user}
-          onNavigate={handleMenuNavigate}
-          onLogout={handleMenuLogout}
-          currentScreen={currentScreen}
-        />
-      </>
+        <QuickLinksFooter />
+      </View>
     );
   }
 
   // Show profile screen
   if (currentScreen === 'profile') {
     return (
-      <>
+      <View style={{ flex: 1 }}>
+        <ThemeToggleButton />
         <UserProfileScreen
           onLogout={() => {
             setUser(null);
@@ -1723,19 +1797,9 @@ function AppContent() {
             setCurrentScreen('home');
           }}
           getDeviceHash={deviceHash.get}
-          onOpenMenu={() => setMenuDrawerVisible(true)}
         />
-        
-        {/* Menu Drawer */}
-        <MenuDrawer
-          visible={menuDrawerVisible}
-          onClose={() => setMenuDrawerVisible(false)}
-          user={user}
-          onNavigate={handleMenuNavigate}
-          onLogout={handleMenuLogout}
-          currentScreen={currentScreen}
-        />
-      </>
+        <QuickLinksFooter />
+      </View>
     );
   }
 
@@ -1757,14 +1821,7 @@ function AppContent() {
   if (!vehicleId) {
     return (
       <View style={styles.homeContainer}>
-        {/* Hamburger Menu Icon */}
-        <TouchableOpacity 
-          style={styles.hamburgerIcon}
-          onPress={() => setMenuDrawerVisible(true)}
-        >
-          <FontAwesome name="bars" size={22} color="#2563eb" />
-        </TouchableOpacity>
-
+        <ThemeToggleButton />
         <ScrollView 
           style={styles.homeScrollContainer}
           contentContainerStyle={styles.homeScrollContent}
@@ -1833,31 +1890,23 @@ function AppContent() {
             {regNumberError ? (
               <Text style={styles.errorText}>{regNumberError}</Text>
             ) : null}
+            
+            {/* Continue Button - moved up */}
+            <Pressable
+              onPress={handleRegNumberSubmit}
+              style={[styles.submitRegButton, !regNumber.trim() && styles.submitRegButtonDisabled]}
+              disabled={!regNumber.trim()}
+            >
+              <Text style={[styles.submitRegButtonText, !regNumber.trim() && styles.submitRegButtonTextDisabled]}>
+                Continue
+              </Text>
+            </Pressable>
           </View>
           <View style={styles.submitRegButtonSpacer} />
         </ScrollView>
 
-        <View style={styles.homeFooterContainer}>
-          <Pressable
-            onPress={handleRegNumberSubmit}
-            style={[styles.submitRegButton, !regNumber.trim() && styles.submitRegButtonDisabled]}
-            disabled={!regNumber.trim()}
-          >
-            <Text style={[styles.submitRegButtonText, !regNumber.trim() && styles.submitRegButtonTextDisabled]}>
-              Continue
-            </Text>
-          </Pressable>
-        </View>
-
-        {/* Menu Drawer */}
-        <MenuDrawer
-          visible={menuDrawerVisible}
-          onClose={() => setMenuDrawerVisible(false)}
-          user={user}
-          onNavigate={handleMenuNavigate}
-          onLogout={handleMenuLogout}
-          currentScreen={currentScreen}
-        />
+        {/* Quick Links Footer */}
+        <QuickLinksFooter />
       </View>
     );
   }
@@ -1866,14 +1915,7 @@ function AppContent() {
   if (viewMode === 'stats' && vehicleId) {
     return (
       <View style={styles.ratingPageContainer}>
-        {/* Hamburger Menu Icon */}
-        <TouchableOpacity 
-          style={styles.hamburgerIcon}
-          onPress={() => setMenuDrawerVisible(true)}
-        >
-          <FontAwesome name="bars" size={22} color="#2563eb" />
-        </TouchableOpacity>
-
+        <ThemeToggleButton />
         <ScrollView 
           style={styles.scrollContainer}
           contentContainerStyle={styles.statsContainer}
@@ -2021,30 +2063,16 @@ function AppContent() {
           </View>
         )}
         </ScrollView>
-
-        {/* Menu Drawer */}
-        <MenuDrawer
-          visible={menuDrawerVisible}
-          onClose={() => setMenuDrawerVisible(false)}
-          user={user}
-          onNavigate={handleMenuNavigate}
-          onLogout={handleMenuLogout}
-          currentScreen={currentScreen}
-        />
+        
+        {/* Quick Links Footer */}
+        <QuickLinksFooter />
       </View>
     );
   }
 
   return (
     <View style={styles.ratingPageContainer}>
-      {/* Hamburger Menu Icon */}
-      <TouchableOpacity 
-        style={styles.hamburgerIcon}
-        onPress={() => setMenuDrawerVisible(true)}
-      >
-        <FontAwesome name="bars" size={22} color="#2563eb" />
-      </TouchableOpacity>
-
+      <ThemeToggleButton />
       <View style={styles.headerContainer}>
         <View style={styles.ratingHeader}>
           <Text style={styles.ratingTitle}>RateMyRide</Text>
@@ -2140,6 +2168,9 @@ function AppContent() {
         </Pressable>
       </View>
 
+      {/* Quick Links Footer */}
+      <QuickLinksFooter />
+
       {/* Tipping disabled for now */}
       {false && showTipPrompt && vehicleId && tipDeviceHash && (
         <TipPrompt
@@ -2152,16 +2183,6 @@ function AppContent() {
           onSkip={handleTipSkip}
         />
       )}
-
-      {/* Menu Drawer */}
-      <MenuDrawer
-        visible={menuDrawerVisible}
-        onClose={() => setMenuDrawerVisible(false)}
-        user={user}
-        onNavigate={handleMenuNavigate}
-        onLogout={handleMenuLogout}
-        currentScreen={currentScreen}
-      />
 
       {/* Points Earned Notification */}
       <PointsEarnedNotification

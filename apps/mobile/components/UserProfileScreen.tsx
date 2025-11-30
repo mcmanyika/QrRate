@@ -421,12 +421,13 @@ const getStyles = (theme: any) => StyleSheet.create({
   section: {
     flex: 1,
     paddingHorizontal: 24,
+    marginBottom: 80, // Leave space for footer menu to prevent touch blocking
   },
   scrollableList: {
     flex: 1,
   },
   scrollableContent: {
-    paddingBottom: 24,
+    paddingBottom: 100, // Extra padding to leave space for footer menu
   },
   sectionTitle: {
     fontSize: 20,
