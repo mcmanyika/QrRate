@@ -4,10 +4,12 @@ import { useEffect, useState } from 'react'
 import VehicleCard from '@/components/dashboard/VehicleCard'
 import Pagination from '@/components/dashboard/Pagination'
 import LoadingSpinner from '@/components/LoadingSpinner'
+import { getCountries, type Country } from '@/lib/countries'
 
 interface Vehicle {
   id: string
   reg_number: string
+  country_code: string
   is_active: boolean
   qr_code_svg?: string | null
   route_id?: string | null
@@ -47,8 +49,10 @@ export default function VehiclesPage() {
   const [loading, setLoading] = useState(true)
   const [showAddForm, setShowAddForm] = useState(false)
   const [newRegNumber, setNewRegNumber] = useState('')
+  const [newCountryCode, setNewCountryCode] = useState('KE')
   const [showClaimForm, setShowClaimForm] = useState(false)
   const [claimRegNumber, setClaimRegNumber] = useState('')
+  const [claimCountryCode, setClaimCountryCode] = useState('KE')
   const [currentPage, setCurrentPage] = useState(1)
   const [pagination, setPagination] = useState<PaginationData>({
     page: 1,
@@ -60,8 +64,11 @@ export default function VehiclesPage() {
   const [selectedRouteFilter, setSelectedRouteFilter] = useState<string>('')
   const [routes, setRoutes] = useState<Route[]>([])
   const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null)
+  const [countries, setCountries] = useState<Country[]>([])
+  const [loadingCountries, setLoadingCountries] = useState(true)
   const [editFormData, setEditFormData] = useState({
     reg_number: '',
+    country_code: 'KE',
     route_id: '',
     is_active: true,
     driver_staff_id: '',
@@ -76,6 +83,33 @@ export default function VehiclesPage() {
     fetchDrivers()
     fetchConductors()
   }, [currentPage])
+
+  // Fetch countries on mount
+  useEffect(() => {
+    const loadCountries = async () => {
+      setLoadingCountries(true)
+      try {
+        const fetchedCountries = await getCountries()
+        setCountries(fetchedCountries)
+        // Set default country if available
+        if (fetchedCountries.length > 0) {
+          const keCountry = fetchedCountries.find(c => c.code === 'KE')
+          if (keCountry) {
+            setNewCountryCode('KE')
+            setClaimCountryCode('KE')
+          } else {
+            setNewCountryCode(fetchedCountries[0].code)
+            setClaimCountryCode(fetchedCountries[0].code)
+          }
+        }
+      } catch (error) {
+        console.error('Error loading countries:', error)
+      } finally {
+        setLoadingCountries(false)
+      }
+    }
+    loadCountries()
+  }, [])
 
   async function fetchDrivers() {
     try {
@@ -204,7 +238,7 @@ export default function VehiclesPage() {
       const response = await fetch('/api/transporter/vehicles', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reg_number: newRegNumber }),
+        body: JSON.stringify({ reg_number: newRegNumber, country_code: newCountryCode }),
       })
 
       if (response.ok) {
@@ -257,7 +291,7 @@ export default function VehiclesPage() {
       const response = await fetch('/api/transporter/vehicles/claim', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reg_number: claimRegNumber.trim().toUpperCase() }),
+        body: JSON.stringify({ reg_number: claimRegNumber.trim().toUpperCase(), country_code: claimCountryCode }),
       })
 
       if (response.ok) {
@@ -281,6 +315,7 @@ export default function VehiclesPage() {
       setEditingVehicle(vehicle)
       setEditFormData({
         reg_number: vehicle.reg_number,
+        country_code: vehicle.country_code || 'KE',
         route_id: vehicle.route_id || '',
         is_active: vehicle.is_active,
         driver_staff_id: vehicle.driver_staff_id || '',
@@ -298,6 +333,7 @@ export default function VehiclesPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           reg_number: editFormData.reg_number.trim(),
+          country_code: editFormData.country_code,
           route_id: editFormData.route_id || null,
           is_active: editFormData.is_active,
           driver_staff_id: editFormData.driver_staff_id || null,
@@ -365,6 +401,18 @@ export default function VehiclesPage() {
             Enter the registration number of an existing vehicle to link it to your account.
           </p>
           <div className="flex gap-4">
+            <select
+              value={claimCountryCode}
+              onChange={(e) => setClaimCountryCode(e.target.value)}
+              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-gray-100"
+              disabled={loadingCountries}
+            >
+              {countries.map((country) => (
+                <option key={country.code} value={country.code}>
+                  {country.flag} {country.name}
+                </option>
+              ))}
+            </select>
             <input
               type="text"
               value={claimRegNumber}
@@ -385,6 +433,18 @@ export default function VehiclesPage() {
       {showAddForm && (
         <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6 mb-6">
           <div className="flex gap-4">
+            <select
+              value={newCountryCode}
+              onChange={(e) => setNewCountryCode(e.target.value)}
+              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-gray-100"
+              disabled={loadingCountries}
+            >
+              {countries.map((country) => (
+                <option key={country.code} value={country.code}>
+                  {country.flag} {country.name}
+                </option>
+              ))}
+            </select>
             <input
               type="text"
               value={newRegNumber}
@@ -520,6 +580,26 @@ export default function VehiclesPage() {
               </div>
 
               <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                    Country
+                  </label>
+                  <select
+                    value={editFormData.country_code}
+                    onChange={(e) =>
+                      setEditFormData({ ...editFormData, country_code: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-gray-100"
+                    disabled={loadingCountries}
+                  >
+                    {countries.map((country) => (
+                      <option key={country.code} value={country.code}>
+                        {country.flag} {country.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
                     Registration Number

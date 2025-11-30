@@ -14,11 +14,13 @@ create table if not exists route (
 
 create table if not exists vehicle (
   id uuid primary key default gen_random_uuid(),
-  reg_number text not null unique,
+  reg_number text not null,
+  country_code text not null default 'KE',
   route_id uuid references route(id) on delete set null,
   is_active boolean not null default true,
   qr_code_svg text,
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  unique(country_code, reg_number)
 );
 
 -- Ratings are anonymous; we store a device_hash (opaque) for dedupe.
@@ -57,6 +59,17 @@ create table if not exists tip (
   created_at timestamptz not null default now()
 );
 
+-- Country table for storing all country codes and information
+create table if not exists country (
+  code text primary key,
+  name text not null,
+  flag text not null,
+  region text,
+  is_active boolean not null default true,
+  sort_order integer default 999,
+  created_at timestamptz not null default now()
+);
+
 -- Dedupe: one rating per device per vehicle per hour bucket
 create unique index if not exists uniq_rating_device_vehicle_hour
   on rating (vehicle_id, device_hash, window_start);
@@ -66,13 +79,14 @@ create or replace view vehicle_avg_last_7d as
 select
   v.id as vehicle_id,
   v.reg_number,
+  v.country_code,
   rte.name as route_name,
   avg(rt.stars)::numeric(4,2) as avg_stars,
   count(rt.id) as num_ratings
 from vehicle v
 left join route rte on rte.id = v.route_id
 left join rating rt on rt.vehicle_id = v.id and rt.created_at >= now() - interval '7 days'
-group by v.id, v.reg_number, rte.name;
+group by v.id, v.reg_number, v.country_code, rte.name;
 
 -- Row Level Security
 alter table route enable row level security;
@@ -80,6 +94,7 @@ alter table vehicle enable row level security;
 alter table rating enable row level security;
 alter table admin_user enable row level security;
 alter table tip enable row level security;
+alter table country enable row level security;
 
 -- Policies
 -- Public read for route & vehicle (admin site will still use service role)
@@ -133,6 +148,10 @@ create index if not exists idx_tip_vehicle_created on tip(vehicle_id, created_at
 create index if not exists idx_tip_stripe_status on tip(stripe_status) where stripe_status = 'succeeded';
 create index if not exists idx_tip_rating_id on tip(rating_id) where rating_id is not null;
 
+-- Country indexes
+create index if not exists idx_country_is_active on country(is_active) where is_active = true;
+create index if not exists idx_country_sort_order on country(sort_order);
+
 -- Tip policies
 do $$ begin
   if not exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'tip' and policyname = 'tip_insert_anon') then
@@ -148,11 +167,20 @@ do $$ begin
   end if;
 end $$;
 
+-- Country policies - public read access
+do $$ begin
+  if not exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'country' and policyname = 'country_read_public') then
+    create policy country_read_public on country
+      for select using (is_active = true);
+  end if;
+end $$;
+
 -- Tip analytics view
 create or replace view vehicle_tip_summary as
 select
   v.id as vehicle_id,
   v.reg_number,
+  v.country_code,
   rte.name as route_name,
   count(t.id) filter (where t.stripe_status = 'succeeded') as total_tips,
   sum(t.amount_cents) filter (where t.stripe_status = 'succeeded') as total_amount_cents,
@@ -163,7 +191,7 @@ select
 from vehicle v
 left join route rte on rte.id = v.route_id
 left join tip t on t.vehicle_id = v.id
-group by v.id, v.reg_number, rte.name;
+group by v.id, v.reg_number, v.country_code, rte.name;
 
 -- Service Provider tables (for transporter module)
 create table if not exists service_provider (
@@ -208,5 +236,6 @@ comment on column tip.platform_fee_cents is 'Platform fee deducted from tip amou
 comment on column tip.operator_amount_cents is 'Amount that goes to operator/driver after platform fee';
 comment on table service_provider is 'Service providers (maintenance, fuel suppliers, general services) managed by transporters';
 comment on table vehicle_service_provider is 'Junction table linking vehicles to service providers';
+comment on table country is 'Stores all countries with ISO 3166-1 alpha-2 codes for vehicle registration plate support';
 
 

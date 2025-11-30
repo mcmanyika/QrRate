@@ -9,7 +9,7 @@ export async function POST(request: NextRequest) {
   try {
     const transporter = await requireTransporter()
     const body = await request.json()
-    const { reg_number } = body
+    const { reg_number, country_code = 'KE' } = body
 
     if (!reg_number) {
       return NextResponse.json(
@@ -36,8 +36,9 @@ export async function POST(request: NextRequest) {
     // Check if vehicle exists
     const { data: vehicle, error: vehicleError } = await supabaseAdmin
       .from('vehicle')
-      .select('id, reg_number, transporter_id')
+      .select('id, reg_number, country_code, transporter_id')
       .eq('reg_number', reg_number.trim().toUpperCase())
+      .eq('country_code', country_code)
       .maybeSingle()
 
     if (vehicleError) {

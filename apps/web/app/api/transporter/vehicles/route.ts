@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
   try {
     const transporter = await requireTransporter()
     const body = await request.json()
-    const { reg_number, route_id } = body
+    const { reg_number, country_code = 'KE', route_id } = body
 
     if (!reg_number) {
       return NextResponse.json(
@@ -78,6 +78,7 @@ export async function POST(request: NextRequest) {
       .from('vehicle')
       .insert({
         reg_number,
+        country_code,
         route_id: route_id || null,
         transporter_id: transporter.id,
       })

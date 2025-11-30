@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { StyleSheet, Text, View, TextInput, TouchableOpacity, Pressable, ScrollView, Switch, ActivityIndicator, LogBox } from 'react-native';
+import { StyleSheet, Text, View, TextInput, TouchableOpacity, Pressable, ScrollView, Switch, ActivityIndicator, LogBox, Modal } from 'react-native';
 import { CameraView, useCameraPermissions, BarcodeScanningResult } from 'expo-camera';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { FontAwesome } from '@expo/vector-icons';
@@ -9,7 +9,9 @@ import UserProfileScreen from './components/UserProfileScreen';
 import RiderDashboard from './components/RiderDashboard';
 import PointsEarnedNotification from './components/PointsEarnedNotification';
 import SplashScreen from './components/SplashScreen';
+import QuickLinksFooter from './components/QuickLinksFooter';
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
+import { getCountries, type Country } from './utils/countries';
 // Stripe/Tipping disabled - imports removed to avoid build issues
 // To re-enable: uncomment imports and add @stripe/stripe-react-native to package.json
 // import { StripeProvider } from '@stripe/stripe-react-native';
@@ -69,7 +71,7 @@ const getStyles = (theme: any) => StyleSheet.create({
     backgroundColor: theme.background,
     padding: 20,
     paddingTop: 140,
-    paddingBottom: 100,
+    paddingBottom: 100, // Extra padding to account for QuickLinksFooter (~72px) + spacing
   },
   statsContainer: {
     backgroundColor: theme.background,
@@ -293,23 +295,6 @@ const getStyles = (theme: any) => StyleSheet.create({
   },
   submitButtonSpacer: {
     height: 20,
-  },
-  footerContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: theme.background,
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 32,
-    borderTopWidth: 1,
-    borderTopColor: theme.border,
-    shadowColor: theme.shadow,
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 8,
   },
   submitButton: {
     backgroundColor: theme.primary,
@@ -541,41 +526,6 @@ const getStyles = (theme: any) => StyleSheet.create({
   submitRegButtonSpacer: {
     height: 20,
   },
-  homeFooterContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: theme.background,
-    paddingHorizontal: 24,
-    paddingVertical: 16,
-    borderTopWidth: 1,
-    borderTopColor: theme.border,
-    shadowColor: theme.shadow,
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 10,
-    zIndex: 1000,
-  },
-  quickLinksContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    width: '100%',
-  },
-  quickLink: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-  },
-  quickLinkText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: theme.textSecondary,
-    marginTop: 4,
-  },
   submitRegButton: {
     backgroundColor: theme.primary,
     paddingHorizontal: 32,
@@ -692,13 +642,13 @@ const getStyles = (theme: any) => StyleSheet.create({
     color: theme.textSecondary,
   },
   statsCard: {
-    backgroundColor: '#ffffff',
+    backgroundColor: theme.card,
     borderRadius: 16,
     padding: 24,
     marginBottom: 20,
     borderWidth: 1,
     borderColor: theme.border,
-    shadowColor: '#000',
+    shadowColor: theme.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 8,
@@ -745,7 +695,7 @@ const getStyles = (theme: any) => StyleSheet.create({
     marginBottom: 16,
     paddingBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    borderBottomColor: theme.border,
   },
   tagStatLabel: {
     fontSize: 16,
@@ -779,7 +729,7 @@ const getStyles = (theme: any) => StyleSheet.create({
     marginBottom: 16,
     paddingBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    borderBottomColor: theme.border,
   },
   commentHeader: {
     flexDirection: 'row',
@@ -901,6 +851,94 @@ const getStyles = (theme: any) => StyleSheet.create({
     shadowRadius: 4,
     elevation: 10,
   },
+  label: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.text,
+    marginBottom: 8,
+    textAlign: 'left',
+  },
+  countryButton: {
+    backgroundColor: theme.card,
+    borderWidth: 1.5,
+    borderColor: theme.border,
+    borderRadius: 12,
+    padding: 16,
+    fontSize: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+    width: '100%',
+    maxWidth: 320,
+    shadowColor: theme.shadow,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  countryButtonText: {
+    fontSize: 16,
+    color: theme.text,
+    fontWeight: '600',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  countryModalContent: {
+    backgroundColor: theme.background,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '70%',
+    paddingBottom: 20,
+  },
+  countryModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.border,
+  },
+  countryModalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: theme.text,
+  },
+  countryModalClose: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: theme.card,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  countryModalCloseText: {
+    fontSize: 18,
+    color: theme.textSecondary,
+    fontWeight: '600',
+  },
+  countryModalList: {
+    maxHeight: 400,
+  },
+  countryOption: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.border,
+  },
+  countryOptionSelected: {
+    backgroundColor: theme.card,
+  },
+  countryOptionText: {
+    fontSize: 16,
+    color: theme.text,
+    fontWeight: '500',
+  },
 });
 
 function AppContent() {
@@ -920,6 +958,11 @@ function AppContent() {
   const [regNumber, setRegNumber] = useState('');
   const [regNumberError, setRegNumberError] = useState('');
   const [scanError, setScanError] = useState('');
+  const [countryCode, setCountryCode] = useState('ZW'); // Default to Zimbabwe (for non-logged-in users)
+  const [showCountryPicker, setShowCountryPicker] = useState(false);
+  const [countries, setCountries] = useState<Country[]>([]);
+  const [loadingCountries, setLoadingCountries] = useState(true);
+  const [userHasCountry, setUserHasCountry] = useState(false); // Track if logged-in user has saved country
   const [stars, setStars] = useState(0);
   const [tagRatings, setTagRatings] = useState<Record<string, number>>({});
   const [comment, setComment] = useState('');
@@ -979,6 +1022,101 @@ function AppContent() {
     syncQueuedRatings();
     // Get device hash once at startup
     deviceHash.get().then(setCurrentDeviceHash);
+    
+    // Fetch countries from database and user profile country
+    const loadCountries = async () => {
+      setLoadingCountries(true);
+      try {
+        const fetchedCountries = await getCountries();
+        setCountries(fetchedCountries);
+        
+        // Fetch user's profile country preference
+        let profileCountryCode: string | null = null;
+        try {
+          const deviceHashValue = await deviceHash.get();
+          
+          // Check if user is logged in
+          const { data: { user: currentUser } } = await supabase.auth.getUser();
+          
+          if (currentUser) {
+            // For logged-in users, fetch by user_id
+            const { data: profileData } = await supabase
+              .from('rider_profile')
+              .select('country_code')
+              .eq('user_id', currentUser.id)
+              .maybeSingle();
+            
+            if (profileData?.country_code) {
+              profileCountryCode = profileData.country_code;
+              setUserHasCountry(true); // User has a saved country
+            } else {
+              setUserHasCountry(false); // User doesn't have a saved country
+            }
+          } else {
+            setUserHasCountry(false); // Not logged in
+            // For anonymous users, fetch by device_hash
+            const { data: profileData } = await supabase
+              .from('rider_profile')
+              .select('country_code')
+              .eq('device_hash', deviceHashValue)
+              .maybeSingle();
+            
+            if (profileData?.country_code) {
+              profileCountryCode = profileData.country_code;
+            }
+          }
+        } catch (profileError) {
+          console.error('Error fetching profile country:', profileError);
+          // Continue with default country if profile fetch fails
+          setUserHasCountry(false);
+        }
+        
+        // Set country code based on priority:
+        // 1. User's saved profile country (if available and valid)
+        // 2. Current countryCode (if it exists in fetched countries)
+        // 3. Default based on login status:
+        //    - If logged in: Kenya ('KE')
+        //    - If not logged in: Zimbabwe ('ZW')
+        // 4. First available country
+        if (fetchedCountries.length > 0) {
+          if (profileCountryCode && fetchedCountries.find(c => c.code === profileCountryCode)) {
+            // User has a saved country and it's valid
+            setCountryCode(profileCountryCode);
+          } else if (countryCode && fetchedCountries.find(c => c.code === countryCode)) {
+            // Keep current country if it's still valid
+            // (don't change it)
+          } else {
+            // Check if user is logged in to determine default
+            const { data: { user: currentUser } } = await supabase.auth.getUser();
+            
+            if (currentUser) {
+              // Logged in: default to Kenya
+              const keCountry = fetchedCountries.find(c => c.code === 'KE');
+              if (keCountry) {
+                setCountryCode('KE');
+              } else {
+                setCountryCode(fetchedCountries[0].code);
+              }
+            } else {
+              // Not logged in: default to Zimbabwe
+              const zwCountry = fetchedCountries.find(c => c.code === 'ZW');
+              if (zwCountry) {
+                setCountryCode('ZW');
+              } else {
+                setCountryCode(fetchedCountries[0].code);
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error loading countries:', error);
+        // Fallback to empty array - the getCountries function will handle fallback internally
+        setCountries([]);
+      } finally {
+        setLoadingCountries(false);
+      }
+    };
+    loadCountries();
   }, [syncQueuedRatings]);
 
   // Check for existing session on app start
@@ -999,9 +1137,9 @@ function AppContent() {
     checkSession();
   }, []);
 
-  // Listen to auth state changes
+  // Listen to auth state changes and update country preference when user changes
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       const newUser = session?.user || null;
       setUser(newUser);
       
@@ -1010,20 +1148,134 @@ function AppContent() {
         return;
       }
       
-      if (!newUser) {
-        // Redirect to home if user logs out
-        if (currentScreen === 'profile' || currentScreen === 'dashboard') {
-          setCurrentScreen('home');
+      // When user logs in/out, reload their country preference
+      if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
+        try {
+          // Wait for countries to be loaded if they're not yet available
+          let countriesToUse = countries;
+          if (countriesToUse.length === 0) {
+            // Try to load countries if not already loaded
+            try {
+              countriesToUse = await getCountries();
+              setCountries(countriesToUse);
+            } catch (countriesError) {
+              console.error('Error loading countries on auth change:', countriesError);
+              // Continue with empty array, will retry when countries are loaded
+            }
+          }
+          
+          const deviceHashValue = await deviceHash.get();
+          let profileCountryCode: string | null = null;
+          
+          if (newUser) {
+            // For logged-in users, fetch by user_id
+            const { data: profileData } = await supabase
+              .from('rider_profile')
+              .select('country_code')
+              .eq('user_id', newUser.id)
+              .maybeSingle();
+            
+            if (profileData?.country_code) {
+              profileCountryCode = profileData.country_code;
+              setUserHasCountry(true); // User has a saved country
+            } else {
+              setUserHasCountry(false); // User doesn't have a saved country
+            }
+          } else {
+            setUserHasCountry(false); // Not logged in
+            // For logged-out/anonymous users, fetch by device_hash
+            const { data: profileData } = await supabase
+              .from('rider_profile')
+              .select('country_code')
+              .eq('device_hash', deviceHashValue)
+              .maybeSingle();
+            
+            if (profileData?.country_code) {
+              profileCountryCode = profileData.country_code;
+            }
+          }
+          
+          // Update country code if we have a valid profile country
+          if (profileCountryCode && countriesToUse.length > 0 && countriesToUse.find(c => c.code === profileCountryCode)) {
+            setCountryCode(profileCountryCode);
+          } else if (!newUser && countriesToUse.length > 0) {
+            // If user logged out and no profile country, default to Zimbabwe
+            const zwCountry = countriesToUse.find(c => c.code === 'ZW');
+            if (zwCountry) {
+              setCountryCode('ZW');
+            }
+          } else if (newUser && countriesToUse.length > 0 && !profileCountryCode) {
+            // If user logged in but no profile country, default to Kenya
+            const keCountry = countriesToUse.find(c => c.code === 'KE');
+            if (keCountry) {
+              setCountryCode('KE');
+            }
+          }
+        } catch (profileError) {
+          console.error('Error fetching profile country on auth change:', profileError);
         }
+      }
+      
+      if (!newUser) {
+        // Redirect to home if user logs out (from any screen)
+        setCurrentScreen('home');
+        // Clear all app state on logout
+        setVehicleId(null);
+        setRouteId(null);
+        setStats(null);
+        setVehicleRegNumber('');
+        setRegNumber('');
+        setRegNumberError('');
+        setScanError('');
+        setStars(0);
+        setTagRatings({});
+        setComment('');
+        setThanks(false);
+        setSubmitError('');
+        setDuplicateRatingError(false);
+        setShowPointsNotification(false);
+        setPointsEarned(0);
       } else {
         // If user logs in (SIGNED_IN event) and we're on login screen, redirect to home
         if (event === 'SIGNED_IN' && currentScreen === 'login') {
           console.log('Redirecting to home after SIGNED_IN');
+          // Clear any stale state on login
+          setVehicleId(null);
+          setRouteId(null);
+          setStats(null);
+          setVehicleRegNumber('');
+          setRegNumber('');
+          setRegNumberError('');
+          setScanError('');
+          setStars(0);
+          setTagRatings({});
+          setComment('');
+          setThanks(false);
+          setSubmitError('');
+          setDuplicateRatingError(false);
+          setShowPointsNotification(false);
+          setPointsEarned(0);
           setCurrentScreen('home');
         }
         // Also redirect if user exists and we're on login screen (fallback for any auth event except INITIAL_SESSION)
         else if (currentScreen === 'login' && newUser && event !== 'INITIAL_SESSION') {
           console.log('Redirecting to home (fallback)');
+          // Clear any stale state on login
+          setVehicleId(null);
+          setRouteId(null);
+          setStats(null);
+          setVehicleRegNumber('');
+          setRegNumber('');
+          setRegNumberError('');
+          setScanError('');
+          setStars(0);
+          setTagRatings({});
+          setComment('');
+          setThanks(false);
+          setSubmitError('');
+          setDuplicateRatingError(false);
+          setShowPointsNotification(false);
+          setPointsEarned(0);
           setCurrentScreen('home');
         }
       }
@@ -1032,7 +1284,70 @@ function AppContent() {
     return () => {
       subscription.unsubscribe();
     };
-  }, [currentScreen]);
+  }, [currentScreen, countries]);
+
+  // Reload country preference when user changes (login/logout) or returning to home screen
+  useEffect(() => {
+    if (countries.length > 0) {
+      const reloadCountryPreference = async () => {
+        try {
+          const deviceHashValue = await deviceHash.get();
+          let profileCountryCode: string | null = null;
+          
+          const { data: { user: currentUser } } = await supabase.auth.getUser();
+          
+          if (currentUser) {
+            // For logged-in users, fetch by user_id
+            const { data: profileData } = await supabase
+              .from('rider_profile')
+              .select('country_code')
+              .eq('user_id', currentUser.id)
+              .maybeSingle();
+            
+            if (profileData?.country_code) {
+              profileCountryCode = profileData.country_code;
+              setUserHasCountry(true); // User has a saved country
+            } else {
+              setUserHasCountry(false); // User doesn't have a saved country
+            }
+          } else {
+            setUserHasCountry(false); // Not logged in
+            // For anonymous users, fetch by device_hash
+            const { data: profileData } = await supabase
+              .from('rider_profile')
+              .select('country_code')
+              .eq('device_hash', deviceHashValue)
+              .maybeSingle();
+            
+            if (profileData?.country_code) {
+              profileCountryCode = profileData.country_code;
+            }
+          }
+          
+          // Update country code if we have a valid profile country
+          if (profileCountryCode && countries.find(c => c.code === profileCountryCode)) {
+            setCountryCode(profileCountryCode);
+          } else if (!currentUser && countries.length > 0) {
+            // If not logged in and no profile country, default to Zimbabwe
+            const zwCountry = countries.find(c => c.code === 'ZW');
+            if (zwCountry) {
+              setCountryCode('ZW');
+            }
+          } else if (currentUser && countries.length > 0 && !profileCountryCode) {
+            // If logged in but no profile country, default to Kenya
+            const keCountry = countries.find(c => c.code === 'KE');
+            if (keCountry) {
+              setCountryCode('KE');
+            }
+          }
+        } catch (profileError) {
+          console.error('Error reloading country preference:', profileError);
+        }
+      };
+      
+      reloadCountryPreference();
+    }
+  }, [currentScreen, countries, user]); // Added user as dependency to reload on login/logout
 
   // Auto-dismiss scan errors after 10 seconds
   useEffect(() => {
@@ -1080,7 +1395,8 @@ function AppContent() {
         .maybeSingle();
       
       if (vehicleError) {
-        throw new Error('Unable to fetch vehicle information');
+        console.error('Error fetching vehicle info for stats:', vehicleError);
+        throw new Error(`Unable to fetch vehicle information: ${vehicleError.message || 'Database error'}`);
       }
       
       if (vehicleData) {
@@ -1095,6 +1411,9 @@ function AppContent() {
         .maybeSingle();
 
       // View data error is non-critical, continue without it
+      if (viewError) {
+        console.error('Error fetching vehicle stats view (non-critical):', viewError);
+      }
 
       // Fetch all ratings for this vehicle
       const { data: ratingsData, error: ratingsError } = await supabase
@@ -1105,7 +1424,8 @@ function AppContent() {
         .limit(10);
 
       if (ratingsError) {
-        throw new Error('Unable to fetch ratings');
+        console.error('Error fetching ratings for stats:', ratingsError);
+        throw new Error(`Unable to fetch ratings: ${ratingsError.message || 'Database error'}`);
       }
 
       // Calculate overall stats
@@ -1153,7 +1473,19 @@ function AppContent() {
         recentComments
       });
     } catch (error) {
-      setScanError('Unable to load vehicle statistics. Please check your connection and try again.');
+      console.error('Error in fetchVehicleStats:', error);
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : 'Unable to load vehicle statistics. Please check your connection and try again.';
+      
+      // Check if it's a permission/RLS error
+      if (errorMessage.includes('permission') || errorMessage.includes('policy') || errorMessage.includes('RLS')) {
+        setScanError('Permission denied. Unable to view stats for this vehicle.');
+      } else if (errorMessage.includes('network') || errorMessage.includes('fetch')) {
+        setScanError('Network error. Please check your connection and try again.');
+      } else {
+        setScanError(errorMessage);
+      }
       setStats(null);
     } finally {
       setLoadingStats(false);
@@ -1188,14 +1520,20 @@ function AppContent() {
     if (scannedVehicleId) {
       // Fetch vehicle to get route_id and reg_number
       try {
-        const { data: vehicleData } = await supabase
+        const { data: vehicleData, error: vehicleLookupError } = await supabase
           .from('vehicle')
           .select('id, route_id, reg_number')
           .eq('id', scannedVehicleId)
           .eq('is_active', true)
           .maybeSingle();
         
-        if (vehicleData) {
+        if (vehicleLookupError) {
+          console.error('Error looking up vehicle from QR code:', vehicleLookupError);
+          setScanError(`Unable to look up vehicle: ${vehicleLookupError.message || 'Database error'}`);
+          setVehicleId(null);
+          setRouteId(null);
+          setVehicleRegNumber('');
+        } else if (vehicleData) {
           setVehicleId(vehicleData.id);
           setRouteId(vehicleData.route_id);
           setVehicleRegNumber(vehicleData.reg_number);
@@ -1229,21 +1567,27 @@ function AppContent() {
       setRegNumberError('Please enter a registration number');
       return;
     }
+    if (!countryCode) {
+      setRegNumberError('Please select a country');
+      return;
+    }
     setRegNumberError('');
     try {
-      // First, try to find existing vehicle
+      // First, try to find existing vehicle with country code
       let { data, error } = await supabase
         .from('vehicle')
-        .select('id, route_id, reg_number')
+        .select('id, route_id, reg_number, country_code')
         .eq('reg_number', trimmed)
+        .eq('country_code', countryCode)
         .eq('is_active', true)
         .maybeSingle();
       
       if (error && error.code !== 'PGRST116') {
         // PGRST116 is "not found" which is fine, other errors are real problems
+        console.error('Error searching for vehicle:', error);
         const errorMessage = error.message?.includes('network') || error.message?.includes('fetch')
           ? 'Network error. Please check your connection and try again.'
-          : 'Unable to search. Please try again.';
+          : `Unable to search for vehicle: ${error.message || 'Database error'}`;
         setRegNumberError(errorMessage);
         return;
       }
@@ -1252,34 +1596,59 @@ function AppContent() {
       if (!data) {
         const { data: newVehicle, error: createError } = await supabase
           .from('vehicle')
-          .insert({ reg_number: trimmed, is_active: true })
-          .select('id, route_id, reg_number')
+          .insert({ 
+            reg_number: trimmed, 
+            country_code: countryCode,
+            is_active: true 
+          })
+          .select('id, route_id, reg_number, country_code')
           .single();
         
         if (createError) {
+          console.error('Error creating vehicle:', createError);
           // Check if it's a unique constraint violation (vehicle was created between check and insert)
           if (createError.code === '23505') {
             // Try fetching again
-            const { data: retryData } = await supabase
+            const { data: retryData, error: retryError } = await supabase
               .from('vehicle')
-              .select('id, route_id, reg_number')
+              .select('id, route_id, reg_number, country_code')
               .eq('reg_number', trimmed)
+              .eq('country_code', countryCode)
               .eq('is_active', true)
               .maybeSingle();
+            
+            if (retryError) {
+              console.error('Error fetching vehicle on retry:', retryError);
+              setRegNumberError(`Unable to register vehicle: ${retryError.message || 'Database error'}`);
+              return;
+            }
+            
             if (retryData) {
               data = retryData;
             } else {
-              setRegNumberError('Unable to register vehicle. Please try again.');
+              setRegNumberError('Unable to register vehicle. The vehicle may have been removed.');
               return;
             }
           } else {
-            setRegNumberError('Unable to register vehicle. Please try again.');
+            // Show actual error message for debugging
+            const errorMsg = createError.message || 'Unknown error';
+            console.error('Vehicle creation failed:', errorMsg, createError);
+            
+            // Check for RLS/permission errors
+            if (createError.code === '42501' || createError.message?.includes('permission') || createError.message?.includes('policy')) {
+              setRegNumberError('Permission denied. Please check your connection and try again.');
+            } else if (createError.message?.includes('network') || createError.message?.includes('fetch')) {
+              setRegNumberError('Network error. Please check your connection and try again.');
+            } else {
+              setRegNumberError(`Unable to register vehicle: ${errorMsg}`);
+            }
             return;
           }
         } else if (newVehicle) {
           data = newVehicle;
         } else {
-          setRegNumberError('Unable to register vehicle. Please try again.');
+          console.error('Vehicle creation succeeded but no data returned');
+          setRegNumberError('Vehicle created but no data received. Please try again.');
           return;
         }
       }
@@ -1299,8 +1668,11 @@ function AppContent() {
         await fetchVehicleStats(data.id);
       }
     } catch (err) {
-      const errorMessage = err instanceof Error && (err.message.includes('network') || err.message.includes('fetch'))
-        ? 'Network error. Please check your connection and try again.'
+      console.error('Error in handleRegNumberSubmit:', err);
+      const errorMessage = err instanceof Error 
+        ? (err.message.includes('network') || err.message.includes('fetch')
+          ? 'Network error. Please check your connection and try again.'
+          : `Error: ${err.message}`)
         : 'Unable to process. Please try again.';
       setRegNumberError(errorMessage);
     }
@@ -1439,25 +1811,33 @@ function AppContent() {
           const hash = await deviceHash.get();
           
           // Get points rule
-          const { data: settings } = await supabase
+          const { data: settings, error: settingsError } = await supabase
             .from('points_settings')
             .select('points_per_rating')
-            .single();
+            .maybeSingle();
+          
+          if (settingsError) {
+            console.error('Error fetching points settings:', settingsError);
+          }
           
           const pointsToAward = settings?.points_per_rating || 10;
           
           // Get current points
-          const { data: currentPoints } = await supabase
+          const { data: currentPoints, error: currentPointsError } = await supabase
             .from('user_points')
             .select('available_points, lifetime_points')
             .eq('device_hash', hash)
             .maybeSingle();
           
+          if (currentPointsError) {
+            console.error('Error fetching current points:', currentPointsError);
+          }
+          
           const newAvailable = (currentPoints?.available_points || 0) + pointsToAward;
           const newLifetime = (currentPoints?.lifetime_points || 0) + pointsToAward;
           
           // Upsert user_points
-          await supabase
+          const { error: upsertError } = await supabase
             .from('user_points')
             .upsert({
               device_hash: hash,
@@ -1466,20 +1846,37 @@ function AppContent() {
               updated_at: new Date().toISOString()
             }, { onConflict: 'device_hash' });
           
+          if (upsertError) {
+            console.error('Error upserting user_points:', upsertError);
+            throw upsertError;
+          }
+          
           // Record transaction
-          await supabase
+          const { error: transactionError } = await supabase
             .from('points_transaction')
             .insert({
               device_hash: hash,
               points_amount: pointsToAward,
               transaction_type: 'earn_rating',
               rating_id: ratingData.id,
-              description: 'Rating submitted'
+              description: 'Rating submitted',
+              balance_after: newAvailable
             });
           
-          // Show notification
-          setPointsEarned(pointsToAward);
-          setShowPointsNotification(true);
+          if (transactionError) {
+            console.error('Error recording points transaction:', transactionError);
+            // Transaction recording failure is non-critical, but log it
+          }
+          
+          // Store points and schedule notification to show after thank you screen
+          if (!upsertError) {
+            setPointsEarned(pointsToAward);
+            // Show notification after the thank you screen is dismissed
+            // Delay by 1500ms (thank you screen duration) + 500ms buffer = 2000ms total
+            setTimeout(() => {
+              setShowPointsNotification(true);
+            }, 2000);
+          }
         } catch (err) {
           console.error('Error awarding points:', err);
           // Don't block the thank you screen if points fail
@@ -1571,12 +1968,39 @@ function AppContent() {
 
   const handleMenuLogout = async () => {
     try {
+      // Clear all app state first
+      setVehicleId(null);
+      setRouteId(null);
+      setStats(null);
+      setVehicleRegNumber('');
+      setRegNumber('');
+      setRegNumberError('');
+      setScanError('');
+      setStars(0);
+      setTagRatings({});
+      setComment('');
+      setThanks(false);
+      setSubmitError('');
+      setDuplicateRatingError(false);
+      setShowPointsNotification(false);
+      setPointsEarned(0);
+      setUserHasCountry(false);
+      
+      // Set screen to home immediately to redirect right away
+      setCurrentScreen('home');
+      setUser(null);
+      
+      // Sign out from Supabase
       await supabase.auth.signOut();
       await AsyncStorage.removeItem('supabase.auth.token');
-      setUser(null);
-      setCurrentScreen('home');
     } catch (err) {
       console.error('Error logging out:', err);
+      // Even if logout fails, ensure we're redirected to home and state is cleared
+      setCurrentScreen('home');
+      setUser(null);
+      setVehicleId(null);
+      setRouteId(null);
+      setStats(null);
     }
   };
 
@@ -1594,53 +2018,6 @@ function AppContent() {
     </TouchableOpacity>
   );
 
-  // Reusable footer component
-  const QuickLinksFooter = () => (
-    <View style={styles.homeFooterContainer}>
-      <View style={styles.quickLinksContainer}>
-        {user ? (
-          <>
-            <TouchableOpacity 
-              style={styles.quickLink}
-              onPress={() => handleMenuNavigate('home')}
-            >
-              <FontAwesome name="home" size={18} color={theme.iconColor} />
-              <Text style={styles.quickLinkText}>Home</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={styles.quickLink}
-              onPress={() => handleMenuNavigate('dashboard')}
-            >
-              <FontAwesome name="bar-chart" size={18} color={theme.iconColor} />
-              <Text style={styles.quickLinkText}>Dashboard</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={styles.quickLink}
-              onPress={() => handleMenuNavigate('profile')}
-            >
-              <FontAwesome name="user" size={18} color={theme.iconColor} />
-              <Text style={styles.quickLinkText}>Profile</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={styles.quickLink}
-              onPress={handleMenuLogout}
-            >
-              <FontAwesome name="sign-out" size={18} color={theme.error} />
-              <Text style={[styles.quickLinkText, { color: theme.error }]}>Logout</Text>
-            </TouchableOpacity>
-          </>
-        ) : (
-          <TouchableOpacity 
-            style={styles.quickLink}
-            onPress={() => handleMenuNavigate('login')}
-          >
-            <FontAwesome name="lock" size={18} color={theme.iconColor} />
-            <Text style={styles.quickLinkText}>Login</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-    </View>
-  );
 
   // Helper component for star rating rows
   const StarRow = ({ value, onChange }: { value: number; onChange: (n: number) => void }) => {
@@ -1778,7 +2155,11 @@ function AppContent() {
           }}
           getDeviceHash={deviceHash.get}
         />
-        <QuickLinksFooter />
+        <QuickLinksFooter 
+          user={user}
+          onNavigate={handleMenuNavigate}
+          onLogout={handleMenuLogout}
+        />
       </View>
     );
   }
@@ -1798,7 +2179,11 @@ function AppContent() {
           }}
           getDeviceHash={deviceHash.get}
         />
-        <QuickLinksFooter />
+        <QuickLinksFooter 
+          user={user}
+          onNavigate={handleMenuNavigate}
+          onLogout={handleMenuLogout}
+        />
       </View>
     );
   }
@@ -1875,6 +2260,19 @@ function AppContent() {
           </View>
 
           <View style={styles.inputSection}>
+            {/* Country Selector - Hidden if user is logged in and has a saved country */}
+            {!(user && userHasCountry) && (
+              <TouchableOpacity
+                style={styles.countryButton}
+                onPress={() => setShowCountryPicker(true)}
+              >
+                <Text style={styles.countryButtonText}>
+                  {countries.find(c => c.code === countryCode)?.flag} {countries.find(c => c.code === countryCode)?.name || 'Select Country'}
+                </Text>
+                <FontAwesome name="chevron-down" size={14} color={theme.textSecondary} />
+              </TouchableOpacity>
+            )}
+
             <TextInput
               placeholder="Registration Number"
               value={regNumber}
@@ -1906,7 +2304,59 @@ function AppContent() {
         </ScrollView>
 
         {/* Quick Links Footer */}
-        <QuickLinksFooter />
+        <QuickLinksFooter 
+          user={user}
+          onNavigate={handleMenuNavigate}
+          onLogout={handleMenuLogout}
+        />
+
+        {/* Country Picker Modal */}
+        <Modal
+          visible={showCountryPicker}
+          transparent={true}
+          animationType="slide"
+          onRequestClose={() => setShowCountryPicker(false)}
+        >
+          <Pressable
+            style={styles.modalOverlay}
+            onPress={() => setShowCountryPicker(false)}
+          >
+            <Pressable style={styles.countryModalContent} onPress={(e) => e.stopPropagation()}>
+              <View style={styles.countryModalHeader}>
+                <Text style={styles.countryModalTitle}>Select Country</Text>
+                <TouchableOpacity
+                  onPress={() => setShowCountryPicker(false)}
+                  style={styles.countryModalClose}
+                >
+                  <Text style={styles.countryModalCloseText}>✕</Text>
+                </TouchableOpacity>
+              </View>
+              <ScrollView style={styles.countryModalList}>
+                {countries.map((country) => (
+                  <TouchableOpacity
+                    key={country.code}
+                    style={[
+                      styles.countryOption,
+                      countryCode === country.code && styles.countryOptionSelected
+                    ]}
+                    onPress={() => {
+                      setCountryCode(country.code);
+                      setShowCountryPicker(false);
+                      setRegNumberError('');
+                    }}
+                  >
+                    <Text style={styles.countryOptionText}>
+                      {country.flag} {country.name}
+                    </Text>
+                    {countryCode === country.code && (
+                      <FontAwesome name="check" size={16} color={theme.primary} />
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </Pressable>
+          </Pressable>
+        </Modal>
       </View>
     );
   }
@@ -2065,7 +2515,11 @@ function AppContent() {
         </ScrollView>
         
         {/* Quick Links Footer */}
-        <QuickLinksFooter />
+        <QuickLinksFooter 
+          user={user}
+          onNavigate={handleMenuNavigate}
+          onLogout={handleMenuLogout}
+        />
       </View>
     );
   }
@@ -2149,27 +2603,31 @@ function AppContent() {
         </View>
       ) : null}
 
+        <View style={styles.section}>
+          <Pressable
+            onPress={submit}
+            disabled={stars < 1 || submitLoading}
+            style={[styles.submitButton, (stars < 1 || submitLoading) && styles.submitButtonDisabled]}
+          >
+            {submitLoading ? (
+              <ActivityIndicator size="small" color="#ffffff" />
+            ) : (
+              <Text style={[styles.submitButtonText, stars < 1 && styles.submitButtonTextDisabled]}>
+                Submit Rating
+              </Text>
+            )}
+          </Pressable>
+        </View>
+
         <View style={styles.submitButtonSpacer} />
       </ScrollView>
 
-      <View style={styles.footerContainer}>
-        <Pressable
-          onPress={submit}
-          disabled={stars < 1 || submitLoading}
-          style={[styles.submitButton, (stars < 1 || submitLoading) && styles.submitButtonDisabled]}
-        >
-          {submitLoading ? (
-            <ActivityIndicator size="small" color="#ffffff" />
-          ) : (
-            <Text style={[styles.submitButtonText, stars < 1 && styles.submitButtonTextDisabled]}>
-              Submit Rating
-            </Text>
-          )}
-        </Pressable>
-      </View>
-
       {/* Quick Links Footer */}
-      <QuickLinksFooter />
+      <QuickLinksFooter 
+        user={user}
+        onNavigate={handleMenuNavigate}
+        onLogout={handleMenuLogout}
+      />
 
       {/* Tipping disabled for now */}
       {false && showTipPrompt && vehicleId && tipDeviceHash && (

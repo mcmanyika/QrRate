@@ -9,7 +9,7 @@ export async function PUT(
   try {
     const transporter = await requireTransporter()
     const body = await request.json()
-    const { reg_number, route_id, is_active, qr_code_svg, driver_staff_id, conductor_staff_id } = body
+    const { reg_number, country_code, route_id, is_active, qr_code_svg, driver_staff_id, conductor_staff_id } = body
 
     const supabase = await createClient()
 
@@ -30,6 +30,7 @@ export async function PUT(
 
     const updateData: any = {}
     if (reg_number !== undefined) updateData.reg_number = reg_number
+    if (country_code !== undefined) updateData.country_code = country_code
     if (route_id !== undefined) updateData.route_id = route_id
     if (is_active !== undefined) updateData.is_active = is_active
     if (qr_code_svg !== undefined) updateData.qr_code_svg = qr_code_svg

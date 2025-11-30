@@ -4,6 +4,7 @@ import { FontAwesome } from '@expo/vector-icons';
 import { supabase } from '../lib/supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../contexts/ThemeContext';
+import { getCountries, type Country } from '../utils/countries';
 
 interface RatingHistoryItem {
   id: string;
@@ -36,37 +37,70 @@ export default function UserProfileScreen({ onLogout, onBack, getDeviceHash, onO
   const itemsPerPage = 4;
   const [selectedRating, setSelectedRating] = useState<RatingHistoryItem | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [profileCountryCode, setProfileCountryCode] = useState<string | null>(null);
+  const [countries, setCountries] = useState<Country[]>([]);
+  const [loadingCountries, setLoadingCountries] = useState(false);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [showCountryPicker, setShowCountryPicker] = useState(false);
 
   const fetchUserData = useCallback(async () => {
     try {
       const { data: { user: currentUser } } = await supabase.auth.getUser();
       setUser(currentUser);
 
-      if (currentUser) {
-        // Fetch ratings by device_hash (since rating table doesn't have user_id yet)
-        // For logged-in users, we'll use their device_hash to show their rating history
-        const deviceHash = await getDeviceHash();
-        const { data: ratingsData, error: ratingsError } = await supabase
-          .from('rating')
-          .select(`
-            id,
-            vehicle_id,
-            stars,
-            comment,
-            created_at,
-            vehicle:vehicle_id(reg_number)
-          `)
-          .eq('device_hash', deviceHash)
-          .order('created_at', { ascending: false })
-          .limit(50);
+      // Load countries for profile editing
+      const fetchedCountries = await getCountries();
+      setCountries(fetchedCountries);
 
-        if (ratingsError) {
-          console.error('Error fetching ratings:', ratingsError);
-          setError('Unable to load rating history');
-        } else {
-          setRatings(ratingsData || []);
-          setError(null);
+      // Fetch user profile (country preference)
+      const deviceHash = await getDeviceHash();
+      
+      if (currentUser) {
+        // For logged-in users, fetch by user_id
+        const { data: profileData } = await supabase
+          .from('rider_profile')
+          .select('country_code')
+          .eq('user_id', currentUser.id)
+          .maybeSingle();
+        
+        if (profileData?.country_code) {
+          setProfileCountryCode(profileData.country_code);
         }
+      } else {
+        // For anonymous users, fetch by device_hash
+        const { data: profileData } = await supabase
+          .from('rider_profile')
+          .select('country_code')
+          .eq('device_hash', deviceHash)
+          .maybeSingle();
+        
+        if (profileData?.country_code) {
+          setProfileCountryCode(profileData.country_code);
+        }
+      }
+
+      // Fetch ratings by device_hash
+      const { data: ratingsData, error: ratingsError } = await supabase
+        .from('rating')
+        .select(`
+          id,
+          vehicle_id,
+          stars,
+          comment,
+          created_at,
+          vehicle:vehicle_id(reg_number)
+        `)
+        .eq('device_hash', deviceHash)
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      if (ratingsError) {
+        console.error('Error fetching ratings:', ratingsError);
+        setError('Unable to load rating history');
+      } else {
+        setRatings(ratingsData || []);
+        setError(null);
       }
     } catch (err) {
       console.error('Error fetching user data:', err);
@@ -96,6 +130,141 @@ export default function UserProfileScreen({ onLogout, onBack, getDeviceHash, onO
     setRefreshing(true);
     setCurrentPage(1);
     fetchUserData();
+  };
+
+  const handleSaveProfile = async () => {
+    if (!profileCountryCode) {
+      setError('Please select a country');
+      return;
+    }
+
+    setSavingProfile(true);
+    setError(null);
+
+    try {
+      const deviceHash = await getDeviceHash();
+      
+      if (user) {
+        // For logged-in users, check if profile exists
+        const { data: existingProfile } = await supabase
+          .from('rider_profile')
+          .select('id')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (existingProfile) {
+          // Update existing profile
+          const { error: profileError } = await supabase
+            .from('rider_profile')
+            .update({ country_code: profileCountryCode })
+            .eq('user_id', user.id);
+
+          if (profileError) {
+            console.error('Error updating profile:', profileError);
+            setError('Unable to save profile');
+          } else {
+            setEditModalVisible(false);
+            fetchUserData();
+          }
+        } else {
+          // Insert new profile
+          const { error: profileError } = await supabase
+            .from('rider_profile')
+            .insert({
+              user_id: user.id,
+              country_code: profileCountryCode,
+            });
+
+          if (profileError) {
+            console.error('Error creating profile:', profileError);
+            setError('Unable to save profile');
+          } else {
+            setEditModalVisible(false);
+            fetchUserData();
+          }
+        }
+      } else {
+        // For anonymous users, check if profile exists
+        const { data: existingProfile } = await supabase
+          .from('rider_profile')
+          .select('id')
+          .eq('device_hash', deviceHash)
+          .maybeSingle();
+
+        if (existingProfile) {
+          // Update existing profile
+          const { error: profileError } = await supabase
+            .from('rider_profile')
+            .update({ country_code: profileCountryCode })
+            .eq('device_hash', deviceHash);
+
+          if (profileError) {
+            console.error('Error updating profile:', profileError);
+            setError('Unable to save profile');
+          } else {
+            setEditModalVisible(false);
+            fetchUserData();
+          }
+        } else {
+          // Insert new profile
+          const { error: profileError } = await supabase
+            .from('rider_profile')
+            .insert({
+              device_hash: deviceHash,
+              country_code: profileCountryCode,
+            });
+
+          if (profileError) {
+            console.error('Error creating profile:', profileError);
+            setError('Unable to save profile');
+          } else {
+            setEditModalVisible(false);
+            fetchUserData();
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Error updating profile:', err);
+      setError('Unable to save profile');
+    } finally {
+      setSavingProfile(false);
+    }
+  };
+
+  const handleOpenEdit = async () => {
+    // Ensure we have the current profile country loaded
+    if (!profileCountryCode && countries.length > 0) {
+      const deviceHash = await getDeviceHash();
+      
+      if (user) {
+        const { data: profileData } = await supabase
+          .from('rider_profile')
+          .select('country_code')
+          .eq('user_id', user.id)
+          .maybeSingle();
+        
+        if (profileData?.country_code) {
+          setProfileCountryCode(profileData.country_code);
+        } else if (!profileCountryCode) {
+          setProfileCountryCode('KE'); // Default to Kenya
+        }
+      } else {
+        const { data: profileData } = await supabase
+          .from('rider_profile')
+          .select('country_code')
+          .eq('device_hash', deviceHash)
+          .maybeSingle();
+        
+        if (profileData?.country_code) {
+          setProfileCountryCode(profileData.country_code);
+        } else if (!profileCountryCode) {
+          setProfileCountryCode('KE'); // Default to Kenya
+        }
+      }
+    }
+    
+    setEditModalVisible(true);
+    setError(null);
   };
 
   if (loading) {
@@ -139,6 +308,24 @@ export default function UserProfileScreen({ onLogout, onBack, getDeviceHash, onO
             <Text style={styles.userInfo}>
               {user?.email ? 'Email account' : 'Phone account'}
             </Text>
+            
+            {/* Country Display */}
+            {profileCountryCode && (
+              <View style={styles.countryDisplay}>
+                <Text style={styles.countryDisplayText}>
+                  {countries.find(c => c.code === profileCountryCode)?.flag} {countries.find(c => c.code === profileCountryCode)?.name || profileCountryCode}
+                </Text>
+              </View>
+            )}
+            
+            {/* Edit Button */}
+            <TouchableOpacity
+              style={styles.editButton}
+              onPress={handleOpenEdit}
+            >
+              <FontAwesome name="edit" size={16} color={theme.primary} />
+              <Text style={styles.editButtonText}>Edit Profile</Text>
+            </TouchableOpacity>
           </View>
 
           {/* Rating History */}
@@ -314,6 +501,127 @@ export default function UserProfileScreen({ onLogout, onBack, getDeviceHash, onO
             </Pressable>
           </Pressable>
         </Modal>
+
+        {/* Edit Profile Modal */}
+        <Modal
+          visible={editModalVisible}
+          transparent={true}
+          animationType="slide"
+          onRequestClose={() => setEditModalVisible(false)}
+        >
+          <Pressable
+            style={styles.modalOverlay}
+            onPress={() => setEditModalVisible(false)}
+          >
+            <Pressable style={styles.editModalContent} onPress={(e) => e.stopPropagation()}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Edit Profile</Text>
+                <TouchableOpacity
+                  onPress={() => setEditModalVisible(false)}
+                  style={styles.closeButton}
+                >
+                  <Text style={styles.closeButtonText}>✕</Text>
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView showsVerticalScrollIndicator={false}>
+                {error && (
+                  <View style={styles.errorContainer}>
+                    <Text style={styles.errorText}>{error}</Text>
+                  </View>
+                )}
+
+                <View style={styles.modalSection}>
+                  <TouchableOpacity
+                    style={styles.countrySelectButton}
+                    onPress={() => setShowCountryPicker(true)}
+                    disabled={savingProfile}
+                  >
+                    <Text style={styles.countrySelectButtonText}>
+                      {profileCountryCode ? (
+                        <>
+                          {countries.find(c => c.code === profileCountryCode)?.flag} {countries.find(c => c.code === profileCountryCode)?.name || profileCountryCode}
+                        </>
+                      ) : (
+                        'Select Country'
+                      )}
+                    </Text>
+                    <FontAwesome name="chevron-down" size={14} color={theme.textSecondary} />
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.modalButtonRow}>
+                  <TouchableOpacity
+                    style={[styles.modalButton, styles.cancelButton]}
+                    onPress={() => setEditModalVisible(false)}
+                    disabled={savingProfile}
+                  >
+                    <Text style={styles.cancelButtonText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.modalButton, styles.saveButton, savingProfile && styles.saveButtonDisabled]}
+                    onPress={handleSaveProfile}
+                    disabled={savingProfile || !profileCountryCode}
+                  >
+                    {savingProfile ? (
+                      <ActivityIndicator size="small" color="#ffffff" />
+                    ) : (
+                      <Text style={styles.saveButtonText}>Save</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </ScrollView>
+            </Pressable>
+          </Pressable>
+        </Modal>
+
+        {/* Country Picker Modal */}
+        <Modal
+          visible={showCountryPicker}
+          transparent={true}
+          animationType="slide"
+          onRequestClose={() => setShowCountryPicker(false)}
+        >
+          <Pressable
+            style={styles.modalOverlay}
+            onPress={() => setShowCountryPicker(false)}
+          >
+            <Pressable style={styles.countryModalContent} onPress={(e) => e.stopPropagation()}>
+              <View style={styles.countryModalHeader}>
+                <Text style={styles.countryModalTitle}>Select Country</Text>
+                <TouchableOpacity
+                  onPress={() => setShowCountryPicker(false)}
+                  style={styles.countryModalClose}
+                >
+                  <Text style={styles.countryModalCloseText}>✕</Text>
+                </TouchableOpacity>
+              </View>
+              <ScrollView style={styles.countryModalList}>
+                {countries.map((country) => (
+                  <TouchableOpacity
+                    key={country.code}
+                    style={[
+                      styles.countryOption,
+                      profileCountryCode === country.code && styles.countryOptionSelected
+                    ]}
+                    onPress={() => {
+                      setProfileCountryCode(country.code);
+                      setShowCountryPicker(false);
+                      setError(null);
+                    }}
+                  >
+                    <Text style={styles.countryOptionText}>
+                      {country.flag} {country.name}
+                    </Text>
+                    {profileCountryCode === country.code && (
+                      <FontAwesome name="check" size={16} color={theme.primary} />
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </Pressable>
+          </Pressable>
+        </Modal>
       </View>
     </View>
   );
@@ -417,6 +725,149 @@ const getStyles = (theme: any) => StyleSheet.create({
   userInfo: {
     fontSize: 14,
     color: theme.textSecondary,
+  },
+  editButton: {
+    marginTop: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: theme.primary,
+    backgroundColor: 'transparent',
+  },
+  editButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.primary,
+  },
+  countryDisplay: {
+    marginTop: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: theme.background,
+    borderWidth: 1,
+    borderColor: theme.border || '#e5e7eb',
+  },
+  countryDisplayText: {
+    fontSize: 14,
+    color: theme.text,
+    fontWeight: '500',
+  },
+  editModalContent: {
+    backgroundColor: theme.background,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '80%',
+    paddingBottom: 20,
+  },
+  countrySelectButton: {
+    backgroundColor: theme.card,
+    borderWidth: 1.5,
+    borderColor: theme.border || '#e5e7eb',
+    borderRadius: 12,
+    padding: 14,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '100%',
+  },
+  countrySelectButtonText: {
+    fontSize: 16,
+    color: theme.text,
+    fontWeight: '500',
+  },
+  countryModalContent: {
+    backgroundColor: theme.background,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '70%',
+    paddingBottom: 20,
+  },
+  countryModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.border || '#e5e7eb',
+  },
+  countryModalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: theme.text,
+  },
+  countryModalClose: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: theme.card,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  countryModalCloseText: {
+    fontSize: 18,
+    color: theme.textSecondary,
+    fontWeight: '600',
+  },
+  countryModalList: {
+    maxHeight: 400,
+  },
+  countryOption: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.border || '#e5e7eb',
+  },
+  countryOptionSelected: {
+    backgroundColor: theme.card,
+  },
+  countryOptionText: {
+    fontSize: 16,
+    color: theme.text,
+    fontWeight: '500',
+  },
+  modalButtonRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 24,
+    paddingTop: 20,
+    borderTopWidth: 1,
+    borderTopColor: theme.border || '#e5e7eb',
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelButton: {
+    backgroundColor: theme.card,
+    borderWidth: 1.5,
+    borderColor: theme.border || '#e5e7eb',
+  },
+  cancelButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.text,
+  },
+  saveButton: {
+    backgroundColor: theme.primary,
+  },
+  saveButtonDisabled: {
+    opacity: 0.6,
+  },
+  saveButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#ffffff',
   },
   section: {
     flex: 1,
