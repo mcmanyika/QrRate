@@ -33,7 +33,7 @@ export default async function DashboardLayout({
       <div className="flex flex-col w-0 flex-1 overflow-hidden">
         <Header />
         <main className="flex-1 relative overflow-y-auto focus:outline-none dark:bg-gray-900">
-          <div className="py-3">
+          <div className="py-2">
             <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-5">
               {children}
             </div>

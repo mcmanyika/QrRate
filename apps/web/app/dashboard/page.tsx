@@ -6,7 +6,7 @@ import LoadingSpinner from '@/components/LoadingSpinner'
 import ExpenseBreakdownChart from '@/components/dashboard/ExpenseBreakdownChart'
 import ExpensesVsTipsChart from '@/components/dashboard/ExpensesVsTipsChart'
 import RatingsTrendChart from '@/components/dashboard/RatingsTrendChart'
-import { FaTruck, FaStar, FaChartBar, FaGift, FaDollarSign, FaClock, FaChartLine } from 'react-icons/fa'
+import { FaBus, FaStar, FaChartBar, FaGift, FaDollarSign, FaClock, FaChartLine } from 'react-icons/fa'
 
 interface Stats {
   total_vehicles: number
@@ -107,7 +107,7 @@ export default function DashboardPage() {
         <StatsCard
           title="Total Vehicles"
           value={stats.total_vehicles}
-          icon={<FaTruck className="w-8 h-8" />}
+          icon={<FaBus className="w-8 h-8" />}
           href="/dashboard/vehicles"
         />
         <StatsCard
