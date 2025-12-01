@@ -446,8 +446,7 @@ const getStyles = (theme: any) => StyleSheet.create({
     borderRadius: 12,
     padding: 14,
     marginTop: 16,
-    marginBottom: 8,
-    maxWidth: 320,
+    marginBottom: 32,
     width: '100%',
     shadowColor: '#ef4444',
     shadowOffset: { width: 0, height: 2 },
@@ -972,7 +971,6 @@ function AppContent() {
   const [vehicleRegNumber, setVehicleRegNumber] = useState<string>('');
   const [submitError, setSubmitError] = useState('');
   const [submitLoading, setSubmitLoading] = useState(false);
-  const [duplicateRatingError, setDuplicateRatingError] = useState(false);
   const [showTipPrompt, setShowTipPrompt] = useState(false);
   const [lastRatingId, setLastRatingId] = useState<string | null>(null);
   const [tipDeviceHash, setTipDeviceHash] = useState<string | null>(null);
@@ -1232,7 +1230,6 @@ function AppContent() {
         setComment('');
         setThanks(false);
         setSubmitError('');
-        setDuplicateRatingError(false);
         setShowPointsNotification(false);
         setPointsEarned(0);
       } else {
@@ -1252,7 +1249,6 @@ function AppContent() {
           setComment('');
           setThanks(false);
           setSubmitError('');
-          setDuplicateRatingError(false);
           setShowPointsNotification(false);
           setPointsEarned(0);
           setCurrentScreen('home');
@@ -1273,7 +1269,6 @@ function AppContent() {
           setComment('');
           setThanks(false);
           setSubmitError('');
-          setDuplicateRatingError(false);
           setShowPointsNotification(false);
           setPointsEarned(0);
           setCurrentScreen('home');
@@ -1771,11 +1766,23 @@ function AppContent() {
       }
       
       if (error) {
-        
         // Handle duplicate rating constraint (user already rated this vehicle in this hour)
         if (error.code === '23505' && error.message?.includes('uniq_rating_device_vehicle_hour')) {
-          setDuplicateRatingError(true);
-          setSubmitError('');
+          setSubmitError('You\'ve already rated this vehicle. You can submit another rating in an hour.');
+          setSubmitLoading(false);
+          // Reset the form
+          setStars(0);
+          setTagRatings({});
+          setComment('');
+          return;
+        }
+        
+        // Handle daily rating limit exceeded
+        if (error.message?.includes('daily_rating_limit_exceeded')) {
+          // Extract the count from the error message if available
+          const match = error.message.match(/already submitted (\d+) ratings today/);
+          const count = match ? match[1] : '4';
+          setSubmitError(`Maximum of 4 ratings per day reached. You have already submitted ${count} ratings today. Please try again tomorrow.`);
           setSubmitLoading(false);
           // Reset the form
           setStars(0);
@@ -1805,10 +1812,12 @@ function AppContent() {
       // Success!
       success = true;
       
-      // Award points directly
+      // Award points directly using the same device_hash that was used for the rating
       if (ratingData?.id) {
         try {
-          const hash = await deviceHash.get();
+          // Use the same deviceHashValue that was used for the rating
+          // This ensures consistency between rating and points for both logged-in and anonymous users
+          const hash = deviceHashValue;
           
           // Get points rule
           const { data: settings, error: settingsError } = await supabase
@@ -1829,7 +1838,8 @@ function AppContent() {
             .eq('device_hash', hash)
             .maybeSingle();
           
-          if (currentPointsError) {
+          if (currentPointsError && currentPointsError.code !== 'PGRST116') {
+            // PGRST116 is "not found" which is fine for first-time users
             console.error('Error fetching current points:', currentPointsError);
           }
           
@@ -1906,7 +1916,6 @@ function AppContent() {
     // Only show tip prompt if submission was successful
     if (success) {
       setSubmitError('');
-      setDuplicateRatingError(false);
       // Tipping disabled for now - go straight to thanks screen
       setStars(0); 
       setTagRatings({}); 
@@ -1964,6 +1973,20 @@ function AppContent() {
 
   const handleMenuNavigate = (screen: 'login' | 'dashboard' | 'profile' | 'home') => {
     setCurrentScreen(screen);
+    // When navigating to home, clear vehicle state to exit stats/rating views
+    if (screen === 'home') {
+      setVehicleId(null);
+      setRouteId(null);
+      setStats(null);
+      setVehicleRegNumber('');
+      setRegNumber('');
+      setRegNumberError('');
+      setScanError('');
+      setStars(0);
+      setTagRatings({});
+      setComment('');
+      setViewMode('rate'); // Reset to rate mode
+    }
   };
 
   const handleMenuLogout = async () => {
@@ -1981,7 +2004,6 @@ function AppContent() {
       setComment('');
       setThanks(false);
       setSubmitError('');
-      setDuplicateRatingError(false);
       setShowPointsNotification(false);
       setPointsEarned(0);
       setUserHasCountry(false);
@@ -2032,29 +2054,6 @@ function AppContent() {
     );
   };
 
-  // Helper component for duplicate rating message
-  const DuplicateRatingMessage = ({ onDismiss }: { onDismiss: () => void }) => {
-    return (
-      <View style={styles.duplicateRatingContainer}>
-        <View style={styles.duplicateRatingIcon}>
-          <Text style={styles.duplicateRatingIconText}>✓</Text>
-        </View>
-        <View style={styles.duplicateRatingContent}>
-          <Text style={styles.duplicateRatingTitle}>Thank you for your feedback!</Text>
-          <Text style={styles.duplicateRatingMessage}>
-            You've already rated this vehicle. You can submit another rating in an hour.
-          </Text>
-        </View>
-        <Pressable
-          onPress={onDismiss}
-          style={styles.duplicateRatingDismiss}
-        >
-          <Text style={styles.duplicateRatingDismissText}>Got it</Text>
-        </Pressable>
-      </View>
-    );
-  };
-
   if (thanks) {
     return (
       <View style={styles.center}>
@@ -2063,12 +2062,6 @@ function AppContent() {
         </View>
         <Text style={styles.title}>Thank you!</Text>
         <Text style={styles.subtitle}>Your rating has been submitted.</Text>
-        <Pressable
-          onPress={() => { setScanning(true); setThanks(false); }}
-          style={styles.button}
-        >
-          <Text style={styles.buttonText}>Rate another Kombi</Text>
-        </Pressable>
       </View>
     );
   }
@@ -2540,18 +2533,6 @@ function AppContent() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        {duplicateRatingError ? (
-          <DuplicateRatingMessage onDismiss={() => {
-            setDuplicateRatingError(false);
-            setVehicleId(null);
-            setRouteId(null);
-            setVehicleRegNumber('');
-            setStars(0);
-            setTagRatings({});
-            setComment('');
-          }} />
-        ) : null}
-
         <View style={styles.section}>
           <StarRow value={stars} onChange={setStars} />
         </View>

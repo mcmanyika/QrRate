@@ -34,8 +34,8 @@ create table if not exists rating (
   comment text,
   device_hash text not null,
   created_at timestamptz not null default now(),
-  -- bucketed window start (one per hour per device per vehicle)
-  window_start timestamptz generated always as (date_trunc('hour', created_at)) stored
+  -- hour_bucket for 1-hour rating restriction (updated by trigger)
+  hour_bucket timestamptz not null default now()
 );
 
 create table if not exists admin_user (
@@ -70,9 +70,25 @@ create table if not exists country (
   created_at timestamptz not null default now()
 );
 
--- Dedupe: one rating per device per vehicle per hour bucket
-create unique index if not exists uniq_rating_device_vehicle_hour
-  on rating (vehicle_id, device_hash, window_start);
+-- Rating restrictions:
+-- - One rating per device per vehicle per hour (via unique index on hour_bucket)
+-- - Maximum 4 ratings per device per day (via trigger)
+CREATE UNIQUE INDEX IF NOT EXISTS uniq_rating_device_vehicle_hour
+  ON rating (vehicle_id, device_hash, hour_bucket);
+
+-- Trigger to keep hour_bucket aligned to the created_at hour (UTC)
+CREATE OR REPLACE FUNCTION set_hour_bucket()
+RETURNS TRIGGER LANGUAGE plpgsql AS $$
+BEGIN
+  NEW.hour_bucket := date_trunc('hour', NEW.created_at);
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS rating_set_hour_bucket ON rating;
+CREATE TRIGGER rating_set_hour_bucket
+BEFORE INSERT OR UPDATE OF created_at ON rating
+FOR EACH ROW EXECUTE FUNCTION set_hour_bucket();
 
 -- Simple analytics view: average stars per vehicle last 7 days
 create or replace view vehicle_avg_last_7d as
