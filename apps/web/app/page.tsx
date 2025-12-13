@@ -92,7 +92,7 @@ export default function Home() {
           <p className="text-lg md:text-xl text-gray-600 dark:text-gray-300 mb-4 max-w-2xl mx-auto leading-tight tracking-tight animate-slide-up" style={{ animationDelay: '0.4s' }}>
             Scan QR codes to instantly review any business, product or event. Help others make informed decisions and support local businesses.
           </p>
-          <div className="flex flex-col sm:flex-row gap-3 justify-center items-center animate-scale-in" style={{ animationDelay: '0.6s' }}>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center items-center animate-scale-in mt-12" style={{ animationDelay: '0.6s' }}>
             <a
               href="#"
               onClick={handleIOSDownload}
