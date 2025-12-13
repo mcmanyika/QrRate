@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useState, useEffect } from 'react'
-import { FaStore, FaStar, FaChartBar, FaQrcode, FaCamera } from 'react-icons/fa'
+import { FaStore, FaStar, FaChartBar, FaQrcode, FaCamera, FaChartLine, FaAward, FaImages } from 'react-icons/fa'
 import { createClient } from '@/lib/supabase/client'
 
 // Android APK download URL
@@ -90,7 +90,7 @@ export default function Home() {
             Review businesses instantly
           </p>
           <p className="text-lg md:text-xl text-gray-600 dark:text-gray-300 mb-4 max-w-2xl mx-auto leading-tight tracking-tight animate-slide-up" style={{ animationDelay: '0.4s' }}>
-            Scan QR codes to instantly review any business. Help others make informed decisions and support local businesses.
+            Scan QR codes to instantly review any business, product or event. Help others make informed decisions and support local businesses.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center items-center animate-scale-in" style={{ animationDelay: '0.6s' }}>
             <a
@@ -122,7 +122,7 @@ export default function Home() {
       </section>
 
       {/* Features Section */}
-      <section className="container mx-auto px-4 py-6 md:py-8 relative z-10">
+      <section className="container mx-auto px-4 py-14 md:py-20 relative z-10">
         <h2 className="text-4xl md:text-5xl font-extrabold text-center mb-2 gradient-text tracking-tight">
           Key Features
         </h2>
@@ -131,7 +131,9 @@ export default function Home() {
           <div className="group relative text-center p-5 rounded-3xl bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600 hover:shadow-2xl hover:shadow-blue-500/20 transition-all duration-300 hover:-translate-y-2">
             <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-transparent rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
             <div className="relative">
-              <div className="text-5xl mb-3 transform group-hover:scale-110 transition-transform duration-300">📷</div>
+              <div className="mb-3 transform group-hover:scale-110 transition-transform duration-300 text-blue-600 dark:text-blue-400">
+                <FaQrcode className="w-16 h-16 mx-auto" />
+              </div>
               <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2 tracking-tight">
                 QR Code Scanning
               </h3>
@@ -143,8 +145,8 @@ export default function Home() {
           <div className="group relative text-center p-5 rounded-3xl bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border border-gray-200 dark:border-gray-700 hover:border-green-300 dark:hover:border-green-600 hover:shadow-2xl hover:shadow-green-500/20 transition-all duration-300 hover:-translate-y-2">
             <div className="absolute inset-0 bg-gradient-to-br from-green-500/10 to-transparent rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
             <div className="relative">
-              <div className="text-5xl mb-3 transform group-hover:scale-110 transition-transform duration-300 text-yellow-500 dark:text-yellow-400">
-                <FaStar className="w-16 h-16 mx-auto" />
+              <div className="mb-3 transform group-hover:scale-110 transition-transform duration-300 text-yellow-500 dark:text-yellow-400">
+                <FaAward className="w-16 h-16 mx-auto" />
               </div>
               <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2 tracking-tight">
                 Rating System
@@ -157,8 +159,8 @@ export default function Home() {
           <div className="group relative text-center p-5 rounded-3xl bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border border-gray-200 dark:border-gray-700 hover:border-purple-300 dark:hover:border-purple-600 hover:shadow-2xl hover:shadow-purple-500/20 transition-all duration-300 hover:-translate-y-2">
             <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 to-transparent rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
             <div className="relative">
-              <div className="text-5xl mb-3 transform group-hover:scale-110 transition-transform duration-300 text-blue-600 dark:text-blue-400">
-                <FaChartBar className="w-16 h-16 mx-auto" />
+              <div className="mb-3 transform group-hover:scale-110 transition-transform duration-300 text-blue-600 dark:text-blue-400">
+                <FaChartLine className="w-16 h-16 mx-auto" />
               </div>
               <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2 tracking-tight">
                 View Stats
@@ -171,8 +173,8 @@ export default function Home() {
           <div className="group relative text-center p-5 rounded-3xl bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border border-gray-200 dark:border-gray-700 hover:border-yellow-300 dark:hover:border-yellow-600 hover:shadow-2xl hover:shadow-yellow-500/20 transition-all duration-300 hover:-translate-y-2">
             <div className="absolute inset-0 bg-gradient-to-br from-yellow-500/10 to-transparent rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
             <div className="relative">
-              <div className="text-5xl mb-3 transform group-hover:scale-110 transition-transform duration-300 text-pink-500 dark:text-pink-400">
-                <FaCamera className="w-16 h-16 mx-auto" />
+              <div className="mb-3 transform group-hover:scale-110 transition-transform duration-300 text-pink-500 dark:text-pink-400">
+                <FaImages className="w-16 h-16 mx-auto" />
               </div>
               <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2 tracking-tight">
                 Photo Reviews

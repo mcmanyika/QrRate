@@ -19,6 +19,9 @@ export default function EventDashboardPage() {
   const [showAddBusiness, setShowAddBusiness] = useState(false)
   const [businessSearch, setBusinessSearch] = useState('')
   const [searchResults, setSearchResults] = useState<any[]>([])
+  const [searching, setSearching] = useState(false)
+  const [addingBusiness, setAddingBusiness] = useState<string | null>(null)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
 
   useEffect(() => {
     async function loadEventData() {
@@ -94,28 +97,69 @@ export default function EventDashboardPage() {
     }
   }, [eventId, router])
 
-  async function handleSearchBusinesses() {
-    if (!businessSearch.trim()) {
+  // Debounce search when businessSearch changes
+  useEffect(() => {
+    if (!showAddBusiness || !businessSearch.trim()) {
       setSearchResults([])
       return
     }
 
+    const timeoutId = setTimeout(() => {
+      handleSearchBusinesses()
+    }, 300)
+
+    return () => clearTimeout(timeoutId)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [businessSearch, showAddBusiness, eventId])
+
+  async function handleSearchBusinesses() {
+    if (!businessSearch.trim()) {
+      setSearchResults([])
+      setSearching(false)
+      return
+    }
+
+    setSearching(true)
     try {
       const supabase = createClient()
-      const { data } = await supabase
+      
+      // Get IDs of businesses already in this event
+      const { data: existingBusinesses } = await supabase
+        .from('event_business')
+        .select('business_id')
+        .eq('event_id', eventId)
+      
+      const existingIds = existingBusinesses?.map(eb => eb.business_id).filter(Boolean) || []
+      
+      // Search for businesses
+      const { data, error } = await supabase
         .from('business')
         .select('id, name, category, logo_url')
-        .ilike('name', `%${businessSearch}%`)
+        .ilike('name', `%${businessSearch.trim()}%`)
         .eq('is_active', true)
-        .limit(10)
+        .limit(20) // Get more results to filter client-side
 
-      setSearchResults(data || [])
+      if (error) {
+        console.error('Error searching businesses:', error)
+        setSearchResults([])
+        return
+      }
+
+      // Filter out businesses already in event (client-side)
+      const filtered = (data || []).filter(b => !existingIds.includes(b.id)).slice(0, 10)
+      setSearchResults(filtered)
     } catch (error) {
       console.error('Error searching businesses:', error)
+      setSearchResults([])
+    } finally {
+      setSearching(false)
     }
   }
 
   async function handleAddBusiness(businessId: string) {
+    setAddingBusiness(businessId)
+    setSuccessMessage(null)
+    
     try {
       const supabase = createClient()
       const { error } = await supabase
@@ -125,21 +169,72 @@ export default function EventDashboardPage() {
           business_id: businessId,
         })
 
-      if (error) throw error
+      if (error) {
+        if (error.code === '23505') {
+          // Unique constraint violation - business already in event
+          setAddingBusiness(null)
+          alert('This business is already added to the event')
+          return
+        }
+        throw error
+      }
 
-      // Reload businesses
+      // Find the business name for success message
+      const addedBusiness = searchResults.find(b => b.id === businessId)
+      const businessName = addedBusiness?.name || 'Vendor'
+
+      // Reload businesses and stats
       const { data: eventBusinesses } = await supabase
         .from('event_business')
         .select('*, business:business_id(*)')
         .eq('event_id', eventId)
 
-      setBusinesses(eventBusinesses?.map(eb => eb.business).filter(Boolean) || [])
-      setShowAddBusiness(false)
-      setBusinessSearch('')
-      setSearchResults([])
+      const updatedBusinesses = eventBusinesses?.map(eb => eb.business).filter(Boolean) || []
+      setBusinesses(updatedBusinesses)
+
+      // Recalculate stats
+      if (updatedBusinesses.length > 0) {
+        const businessIds = updatedBusinesses.map(b => b.id).filter(Boolean)
+        
+        const { data: reviews } = await supabase
+          .from('review')
+          .select('business_id, stars')
+          .in('business_id', businessIds)
+          .eq('is_public', true)
+
+        const totalReviews = reviews?.length || 0
+        const avgRating = reviews && reviews.length > 0
+          ? reviews.reduce((sum, r) => sum + r.stars, 0) / reviews.length
+          : 0
+
+        setStats({
+          total_businesses: businessIds.length,
+          total_reviews: totalReviews,
+          avg_rating: avgRating,
+        })
+      } else {
+        setStats({
+          total_businesses: 0,
+          total_reviews: 0,
+          avg_rating: 0,
+        })
+      }
+
+      // Show success message
+      setSuccessMessage(`${businessName} has been added to the event!`)
+      setAddingBusiness(null)
+      
+      // Clear search after a short delay
+      setTimeout(() => {
+        setShowAddBusiness(false)
+        setBusinessSearch('')
+        setSearchResults([])
+        setSuccessMessage(null)
+      }, 2000)
     } catch (error) {
       console.error('Error adding business:', error)
-      alert('Failed to add business to event')
+      setAddingBusiness(null)
+      alert(error instanceof Error ? error.message : 'Failed to add business to event')
     }
   }
 
@@ -209,42 +304,78 @@ export default function EventDashboardPage() {
           </button>
         </div>
 
+        {successMessage && (
+          <div className="mb-4 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+            <p className="text-green-800 dark:text-green-200 text-sm">{successMessage}</p>
+          </div>
+        )}
+
         {showAddBusiness && (
           <div className="mb-4">
             <div className="flex gap-2">
               <input
                 type="text"
                 value={businessSearch}
-                onChange={(e) => {
-                  setBusinessSearch(e.target.value)
-                  handleSearchBusinesses()
+                onChange={(e) => setBusinessSearch(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handleSearchBusinesses()
+                  }
                 }}
-                placeholder="Search businesses..."
-                className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100"
+                placeholder="Search businesses by name..."
+                className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
+              <button
+                onClick={handleSearchBusinesses}
+                disabled={searching || !businessSearch.trim()}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {searching ? 'Searching...' : 'Search'}
+              </button>
             </div>
+            {searching && (
+              <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">Searching...</p>
+            )}
+            {!searching && businessSearch.trim() && searchResults.length === 0 && (
+              <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">No businesses found. Try a different search term.</p>
+            )}
             {searchResults.length > 0 && (
               <div className="mt-2 border border-gray-300 dark:border-gray-600 rounded-lg max-h-60 overflow-y-auto">
                 {searchResults.map((business) => (
                   <div
                     key={business.id}
-                    className="p-3 border-b dark:border-gray-700 last:border-0 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer"
-                    onClick={() => handleAddBusiness(business.id)}
+                    className={`p-3 border-b dark:border-gray-700 last:border-0 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors ${
+                      addingBusiness === business.id ? 'opacity-50 cursor-wait' : 'cursor-pointer'
+                    }`}
+                    onClick={() => {
+                      if (addingBusiness !== business.id) {
+                        handleAddBusiness(business.id)
+                      }
+                    }}
                   >
                     <div className="flex items-center gap-3">
-                      {business.logo_url && (
+                      {business.logo_url ? (
                         <img
                           src={business.logo_url}
                           alt={business.name}
                           className="w-10 h-10 rounded-full object-cover"
                         />
+                      ) : (
+                        <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-600 flex items-center justify-center">
+                          <FaStore className="text-gray-400" />
+                        </div>
                       )}
-                      <div>
+                      <div className="flex-1">
                         <p className="font-medium text-gray-900 dark:text-gray-100">{business.name}</p>
                         {business.category && (
                           <p className="text-sm text-gray-500 dark:text-gray-400 capitalize">{business.category}</p>
                         )}
                       </div>
+                      {addingBusiness === business.id ? (
+                        <span className="text-blue-600 dark:text-blue-400 text-sm">Adding...</span>
+                      ) : (
+                        <span className="text-blue-600 dark:text-blue-400 text-sm">Click to Add →</span>
+                      )}
                     </div>
                   </div>
                 ))}
