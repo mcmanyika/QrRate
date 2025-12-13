@@ -6,9 +6,9 @@ import PointsBalanceCard from './PointsBalanceCard';
 import { useTheme } from '../contexts/ThemeContext';
 
 interface DashboardStats {
-  totalRatings: number;
+  totalReviews: number;
   averageStars: number;
-  favoriteVehicle: string | null;
+  favoriteBusiness: string | null;
 }
 
 interface RiderDashboardProps {
@@ -24,9 +24,9 @@ export default function RiderDashboard({ user, onLogout, onNavigateProfile, getD
   const styles = useMemo(() => getStyles(theme), [theme]);
   
   const [stats, setStats] = useState<DashboardStats>({
-    totalRatings: 0,
+    totalReviews: 0,
     averageStars: 0,
-    favoriteVehicle: null,
+    favoriteBusiness: null,
   });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -38,50 +38,50 @@ export default function RiderDashboard({ user, onLogout, onNavigateProfile, getD
       // Use user's auth ID if logged in, otherwise use device hash
       const identifier = user?.id || await getDeviceHash();
       
-      // Fetch all ratings for this user/device
-      const { data: ratingsData, error: ratingsError } = await supabase
-        .from('rating')
-        .select('id, vehicle_id, stars')
+      // Fetch all reviews for this user/device
+      const { data: reviewsData, error: reviewsError } = await supabase
+        .from('review')
+        .select('id, business_id, stars')
         .eq('device_hash', identifier)
         .order('created_at', { ascending: false });
 
-        if (ratingsError) {
-          console.error('Error fetching ratings:', ratingsError);
+        if (reviewsError) {
+          console.error('Error fetching reviews:', reviewsError);
           setError('Unable to load dashboard data');
           setLoading(false);
           setRefreshing(false);
           return;
         }
 
-        const ratings = ratingsData || [];
+        const reviews = reviewsData || [];
         
         // Calculate stats
-        const totalRatings = ratings.length;
-        const averageStars = totalRatings > 0
-          ? ratings.reduce((sum, r) => sum + r.stars, 0) / totalRatings
+        const totalReviews = reviews.length;
+        const averageStars = totalReviews > 0
+          ? reviews.reduce((sum, r) => sum + r.stars, 0) / totalReviews
           : 0;
         
-        // Find most frequently rated vehicle
-        let favoriteVehicle: string | null = null;
-        if (totalRatings > 0) {
-          const vehicleCounts: Record<string, number> = {};
-          ratings.forEach(rating => {
-            const vehicleId = rating.vehicle_id;
-            vehicleCounts[vehicleId] = (vehicleCounts[vehicleId] || 0) + 1;
+        // Find most frequently reviewed business
+        let favoriteBusiness: string | null = null;
+        if (totalReviews > 0) {
+          const businessCounts: Record<string, number> = {};
+          reviews.forEach(review => {
+            const businessId = review.business_id;
+            businessCounts[businessId] = (businessCounts[businessId] || 0) + 1;
           });
           
-          const favoriteVehicleId = Object.keys(vehicleCounts).reduce((a, b) => 
-            vehicleCounts[a] > vehicleCounts[b] ? a : b
+          const favoriteBusinessId = Object.keys(businessCounts).reduce((a, b) => 
+            businessCounts[a] > businessCounts[b] ? a : b
           );
           
-          // Fetch the vehicle's reg number
-          const { data: vehicleData } = await supabase
-            .from('vehicle')
-            .select('reg_number')
-            .eq('id', favoriteVehicleId)
+          // Fetch the business name
+          const { data: businessData } = await supabase
+            .from('business')
+            .select('name')
+            .eq('id', favoriteBusinessId)
             .maybeSingle();
           
-          favoriteVehicle = vehicleData?.reg_number || null;
+          favoriteBusiness = businessData?.name || null;
         }
 
         // Fetch points balance
@@ -97,9 +97,9 @@ export default function RiderDashboard({ user, onLogout, onNavigateProfile, getD
         });
 
       setStats({
-        totalRatings,
+        totalReviews,
         averageStars,
-        favoriteVehicle,
+        favoriteBusiness,
       });
       setError(null);
     } catch (err) {
@@ -168,16 +168,16 @@ export default function RiderDashboard({ user, onLogout, onNavigateProfile, getD
       {/* Stats Cards */}
       <View style={styles.statsContainer}>
         <View style={styles.statCard}>
-          <Text style={styles.statValue}>{stats.totalRatings}</Text>
-          <Text style={styles.statLabel}>Total Ratings</Text>
+          <Text style={styles.statValue}>{stats.totalReviews}</Text>
+          <Text style={styles.statLabel}>Total Reviews</Text>
         </View>
         <View style={styles.statCard}>
           <Text style={styles.statValue}>{stats.averageStars.toFixed(1)}</Text>
           <Text style={styles.statLabel}>Avg Rating</Text>
         </View>
-        {stats.favoriteVehicle && (
+        {stats.favoriteBusiness && (
           <View style={styles.statCard}>
-            <Text style={[styles.statValue, styles.statValueSmall]}>{stats.favoriteVehicle}</Text>
+            <Text style={[styles.statValue, styles.statValueSmall]}>{stats.favoriteBusiness}</Text>
             <Text style={styles.statLabel}>Favorite</Text>
           </View>
         )}

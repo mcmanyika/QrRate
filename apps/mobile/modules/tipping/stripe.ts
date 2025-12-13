@@ -17,7 +17,7 @@ const supabase = createClient(SUPABASE_URL || '', SUPABASE_ANON_KEY || '');
 export async function initPaymentSheet(clientSecret: string): Promise<{ error?: any }> {
   try {
     const { error } = await stripeInitPaymentSheet({
-      merchantDisplayName: 'RateMyRide',
+      merchantDisplayName: 'QrRate',
       paymentIntentClientSecret: clientSecret,
       defaultBillingDetails: {
         name: 'Anonymous',

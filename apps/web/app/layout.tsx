@@ -3,8 +3,8 @@ import './globals.css'
 import { ThemeProvider } from '@/contexts/ThemeContext'
 
 export const metadata: Metadata = {
-  title: 'RateMyRide - Rate Your Kombi Ride Experience',
-  description: 'Scan QR codes in kombis to rate your ride experience. Rate cleanliness, safety, friendliness, and punctuality.',
+  title: 'QrRate - Universal QR-Based Review Platform',
+  description: 'Scan QR codes to instantly review any business. Rate businesses with stars, tags, and photos.',
 }
 
 export default function RootLayout({

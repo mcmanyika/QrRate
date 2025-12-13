@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation'
-import { getTransporter } from '@/lib/auth'
+import { getBusinessOwner } from '@/lib/auth'
 import { createClient } from '@/lib/supabase/server'
 import Sidebar from '@/components/dashboard/Sidebar'
 import Header from '@/components/dashboard/Header'
@@ -18,12 +18,10 @@ export default async function DashboardLayout({
     redirect('/auth/login')
   }
 
-  const transporter = await getTransporter()
-
-  if (!transporter) {
-    // This should be handled by middleware, but as a fallback:
-    redirect('/auth/signup?complete=true')
-  }
+  // Check if user has at least one business (optional - allow access even without businesses)
+  const business = await getBusinessOwner()
+  
+  // Note: We allow access even without businesses so users can create their first one
 
   return (
     <div className="h-screen flex overflow-hidden bg-gray-100 dark:bg-gray-900 transition-colors duration-200">

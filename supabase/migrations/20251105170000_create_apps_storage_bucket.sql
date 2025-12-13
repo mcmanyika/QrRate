@@ -13,27 +13,60 @@ values (
 on conflict (id) do nothing;
 
 -- Policy: Allow public read access to all files in the apps bucket
-create policy if not exists "Public read access for apps bucket"
-on storage.objects for select
-using (bucket_id = 'apps');
+do $$ begin
+  if not exists (
+    select 1 from pg_policies 
+    where schemaname = 'storage' 
+    and tablename = 'objects' 
+    and policyname = 'Public read access for apps bucket'
+  ) then
+    create policy "Public read access for apps bucket"
+    on storage.objects for select
+    using (bucket_id = 'apps');
+  end if;
+end $$;
 
 -- Policy: Allow authenticated users to upload files (for admin use)
-create policy if not exists "Authenticated upload access for apps bucket"
-on storage.objects for insert
-with check (bucket_id = 'apps' AND auth.role() = 'authenticated');
+do $$ begin
+  if not exists (
+    select 1 from pg_policies 
+    where schemaname = 'storage' 
+    and tablename = 'objects' 
+    and policyname = 'Authenticated upload access for apps bucket'
+  ) then
+    create policy "Authenticated upload access for apps bucket"
+    on storage.objects for insert
+    with check (bucket_id = 'apps' AND auth.role() = 'authenticated');
+  end if;
+end $$;
 
 -- Policy: Allow authenticated users to update files (for admin use)
-create policy if not exists "Authenticated update access for apps bucket"
-on storage.objects for update
-using (bucket_id = 'apps' AND auth.role() = 'authenticated');
+do $$ begin
+  if not exists (
+    select 1 from pg_policies 
+    where schemaname = 'storage' 
+    and tablename = 'objects' 
+    and policyname = 'Authenticated update access for apps bucket'
+  ) then
+    create policy "Authenticated update access for apps bucket"
+    on storage.objects for update
+    using (bucket_id = 'apps' AND auth.role() = 'authenticated');
+  end if;
+end $$;
 
 -- Policy: Allow authenticated users to delete files (for admin use)
-create policy if not exists "Authenticated delete access for apps bucket"
-on storage.objects for delete
-using (bucket_id = 'apps' AND auth.role() = 'authenticated');
+do $$ begin
+  if not exists (
+    select 1 from pg_policies 
+    where schemaname = 'storage' 
+    and tablename = 'objects' 
+    and policyname = 'Authenticated delete access for apps bucket'
+  ) then
+    create policy "Authenticated delete access for apps bucket"
+    on storage.objects for delete
+    using (bucket_id = 'apps' AND auth.role() = 'authenticated');
+  end if;
+end $$;
 
-comment on policy "Public read access for apps bucket" on storage.objects is 'Allows anyone to download APK files from the apps bucket';
-comment on policy "Authenticated upload access for apps bucket" on storage.objects is 'Allows authenticated users to upload APK files';
-comment on policy "Authenticated update access for apps bucket" on storage.objects is 'Allows authenticated users to update APK files';
-comment on policy "Authenticated delete access for apps bucket" on storage.objects is 'Allows authenticated users to delete APK files';
+-- Comments removed - require owner permissions on storage.objects
 

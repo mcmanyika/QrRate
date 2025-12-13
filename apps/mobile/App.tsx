@@ -24,17 +24,19 @@ LogBox.ignoreLogs([
   'removeListeners',
 ]);
 
-type PendingRating = {
-  vehicle_id: string;
-  route_id?: string | null;
+type PendingReview = {
+  business_id: string;
+  qr_code_id?: string | null;
   stars: number;
-  tag_ratings: Record<string, number>; // e.g., { "Cleanliness": 4, "Driving safety": 5 }
+  tags?: string[];
+  tag_ratings?: Record<string, number>; // e.g., { "Cleanliness": 4, "Driving safety": 5 }
   comment?: string;
+  photo_urls?: string[];
   device_hash: string;
   created_at: string;
 };
 
-const TAGS = ['Cleanliness', 'Driving safety', 'Friendliness', 'Punctuality'];
+const TAGS = ['Friendly', 'Fast', 'Great value', 'Clean', 'Professional', 'Helpful'];
 
 // UUID validation regex (matches standard UUID format)
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -43,7 +45,7 @@ const isValidUUID = (str: string | null | undefined): boolean => {
   return !!str && UUID_REGEX.test(str);
 };
 
-type VehicleStats = {
+type BusinessStats = {
   avgStars: number;
   numRatings: number;
   tagAverages: Record<string, number>;
@@ -952,10 +954,10 @@ function AppContent() {
   const [user, setUser] = useState<any>(null);
   const [loadingAuth, setLoadingAuth] = useState(true);
   const [showSplash, setShowSplash] = useState(true);
-  const [vehicleId, setVehicleId] = useState<string | null>(null);
-  const [routeId, setRouteId] = useState<string | null>(null);
-  const [regNumber, setRegNumber] = useState('');
-  const [regNumberError, setRegNumberError] = useState('');
+  const [businessId, setBusinessId] = useState<string | null>(null);
+  const [qrCodeId, setQrCodeId] = useState<string | null>(null);
+  const [businessCode, setBusinessCode] = useState(''); // QR code short code
+  const [businessCodeError, setBusinessCodeError] = useState('');
   const [scanError, setScanError] = useState('');
   const [countryCode, setCountryCode] = useState('ZW'); // Default to Zimbabwe (for non-logged-in users)
   const [showCountryPicker, setShowCountryPicker] = useState(false);
@@ -964,11 +966,14 @@ function AppContent() {
   const [userHasCountry, setUserHasCountry] = useState(false); // Track if logged-in user has saved country
   const [stars, setStars] = useState(0);
   const [tagRatings, setTagRatings] = useState<Record<string, number>>({});
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [comment, setComment] = useState('');
+  const [photos, setPhotos] = useState<string[]>([]); // Photo URIs for upload
   const [thanks, setThanks] = useState(false);
-  const [stats, setStats] = useState<VehicleStats | null>(null);
+  const [stats, setStats] = useState<BusinessStats | null>(null);
   const [loadingStats, setLoadingStats] = useState(false);
-  const [vehicleRegNumber, setVehicleRegNumber] = useState<string>('');
+  const [businessName, setBusinessName] = useState<string>('');
+  const [businessLogo, setBusinessLogo] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState('');
   const [submitLoading, setSubmitLoading] = useState(false);
   const [showTipPrompt, setShowTipPrompt] = useState(false);
@@ -978,35 +983,35 @@ function AppContent() {
   const [pointsEarned, setPointsEarned] = useState(0);
   const [currentDeviceHash, setCurrentDeviceHash] = useState('');
 
-  const queueKey = 'pending_ratings_v1';
+  const queueKey = 'pending_reviews_v1';
 
-  const syncQueuedRatings = useCallback(async () => {
+  const syncQueuedReviews = useCallback(async () => {
     try {
       const stored = await AsyncStorage.getItem(queueKey);
       if (!stored) return;
       
-      const payload: PendingRating[] = JSON.parse(stored);
+      const payload: PendingReview[] = JSON.parse(stored);
       if (!payload.length) return;
       
-      // Filter out any ratings with invalid UUIDs
-      const validRatings = payload.filter(r => {
-        const isValid = isValidUUID(r.vehicle_id);
+      // Filter out any reviews with invalid UUIDs
+      const validReviews = payload.filter(r => {
+        const isValid = isValidUUID(r.business_id);
         return isValid;
       });
       
-      if (!validRatings.length) {
-        // All ratings were invalid, clear the queue
+      if (!validReviews.length) {
+        // All reviews were invalid, clear the queue
         await AsyncStorage.removeItem(queueKey);
         return;
       }
       
-      // Clean up route_id in valid ratings
-      const cleanedRatings = validRatings.map(r => ({
+      // Clean up qr_code_id in valid reviews
+      const cleanedReviews = validReviews.map(r => ({
         ...r,
-        route_id: r.route_id && isValidUUID(r.route_id) ? r.route_id : null
+        qr_code_id: r.qr_code_id && isValidUUID(r.qr_code_id) ? r.qr_code_id : null
       }));
       
-      const { error } = await supabase.from('rating').insert(cleanedRatings);
+      const { error } = await supabase.from('review').insert(cleanedReviews);
       if (!error) {
         await AsyncStorage.removeItem(queueKey);
       }
@@ -1016,8 +1021,8 @@ function AppContent() {
   }, []);
 
   useEffect(() => {
-    // try to send any queued ratings at startup
-    syncQueuedRatings();
+    // try to send any queued reviews at startup
+    syncQueuedReviews();
     // Get device hash once at startup
     deviceHash.get().then(setCurrentDeviceHash);
     
@@ -1039,7 +1044,7 @@ function AppContent() {
           if (currentUser) {
             // For logged-in users, fetch by user_id
             const { data: profileData } = await supabase
-              .from('rider_profile')
+              .from('profile')
               .select('country_code')
               .eq('user_id', currentUser.id)
               .maybeSingle();
@@ -1054,7 +1059,7 @@ function AppContent() {
             setUserHasCountry(false); // Not logged in
             // For anonymous users, fetch by device_hash
             const { data: profileData } = await supabase
-              .from('rider_profile')
+              .from('profile')
               .select('country_code')
               .eq('device_hash', deviceHashValue)
               .maybeSingle();
@@ -1115,7 +1120,7 @@ function AppContent() {
       }
     };
     loadCountries();
-  }, [syncQueuedRatings]);
+  }, [syncQueuedReviews]);
 
   // Check for existing session on app start
   useEffect(() => {
@@ -1168,7 +1173,7 @@ function AppContent() {
           if (newUser) {
             // For logged-in users, fetch by user_id
             const { data: profileData } = await supabase
-              .from('rider_profile')
+              .from('profile')
               .select('country_code')
               .eq('user_id', newUser.id)
               .maybeSingle();
@@ -1183,7 +1188,7 @@ function AppContent() {
             setUserHasCountry(false); // Not logged in
             // For logged-out/anonymous users, fetch by device_hash
             const { data: profileData } = await supabase
-              .from('rider_profile')
+              .from('profile')
               .select('country_code')
               .eq('device_hash', deviceHashValue)
               .maybeSingle();
@@ -1218,16 +1223,19 @@ function AppContent() {
         // Redirect to home if user logs out (from any screen)
         setCurrentScreen('home');
         // Clear all app state on logout
-        setVehicleId(null);
-        setRouteId(null);
+        setBusinessId(null);
+        setQrCodeId(null);
         setStats(null);
-        setVehicleRegNumber('');
-        setRegNumber('');
-        setRegNumberError('');
+        setBusinessName('');
+        setBusinessLogo(null);
+        setBusinessCode('');
+        setBusinessCodeError('');
         setScanError('');
         setStars(0);
         setTagRatings({});
+        setSelectedTags([]);
         setComment('');
+        setPhotos([]);
         setThanks(false);
         setSubmitError('');
         setShowPointsNotification(false);
@@ -1237,16 +1245,19 @@ function AppContent() {
         if (event === 'SIGNED_IN' && currentScreen === 'login') {
           console.log('Redirecting to home after SIGNED_IN');
           // Clear any stale state on login
-          setVehicleId(null);
-          setRouteId(null);
+          setBusinessId(null);
+          setQrCodeId(null);
           setStats(null);
-          setVehicleRegNumber('');
-          setRegNumber('');
-          setRegNumberError('');
+          setBusinessName('');
+          setBusinessLogo(null);
+          setBusinessCode('');
+          setBusinessCodeError('');
           setScanError('');
           setStars(0);
           setTagRatings({});
+          setSelectedTags([]);
           setComment('');
+          setPhotos([]);
           setThanks(false);
           setSubmitError('');
           setShowPointsNotification(false);
@@ -1257,16 +1268,19 @@ function AppContent() {
         else if (currentScreen === 'login' && newUser && event !== 'INITIAL_SESSION') {
           console.log('Redirecting to home (fallback)');
           // Clear any stale state on login
-          setVehicleId(null);
-          setRouteId(null);
+          setBusinessId(null);
+          setQrCodeId(null);
           setStats(null);
-          setVehicleRegNumber('');
-          setRegNumber('');
-          setRegNumberError('');
+          setBusinessName('');
+          setBusinessLogo(null);
+          setBusinessCode('');
+          setBusinessCodeError('');
           setScanError('');
           setStars(0);
           setTagRatings({});
+          setSelectedTags([]);
           setComment('');
+          setPhotos([]);
           setThanks(false);
           setSubmitError('');
           setShowPointsNotification(false);
@@ -1294,7 +1308,7 @@ function AppContent() {
           if (currentUser) {
             // For logged-in users, fetch by user_id
             const { data: profileData } = await supabase
-              .from('rider_profile')
+              .from('profile')
               .select('country_code')
               .eq('user_id', currentUser.id)
               .maybeSingle();
@@ -1309,7 +1323,7 @@ function AppContent() {
             setUserHasCountry(false); // Not logged in
             // For anonymous users, fetch by device_hash
             const { data: profileData } = await supabase
-              .from('rider_profile')
+              .from('profile')
               .select('country_code')
               .eq('device_hash', deviceHashValue)
               .maybeSingle();
@@ -1377,68 +1391,78 @@ function AppContent() {
     };
   }, []);
 
-  const fetchVehicleStats = useCallback(async (vId: string) => {
+  const fetchBusinessStats = useCallback(async (bId: string) => {
     setLoadingStats(true);
     setStats(null);
     setScanError(''); // Clear any previous errors
     try {
-      // Fetch vehicle reg number
-      const { data: vehicleData, error: vehicleError } = await supabase
-        .from('vehicle')
-        .select('reg_number')
-        .eq('id', vId)
+      // Fetch business info
+      const { data: businessData, error: businessError } = await supabase
+        .from('business')
+        .select('name, logo_url')
+        .eq('id', bId)
         .maybeSingle();
       
-      if (vehicleError) {
-        console.error('Error fetching vehicle info for stats:', vehicleError);
-        throw new Error(`Unable to fetch vehicle information: ${vehicleError.message || 'Database error'}`);
+      if (businessError) {
+        console.error('Error fetching business info for stats:', businessError);
+        throw new Error(`Unable to fetch business information: ${businessError.message || 'Database error'}`);
       }
       
-      if (vehicleData) {
-        setVehicleRegNumber(vehicleData.reg_number);
+      if (businessData) {
+        setBusinessName(businessData.name);
+        setBusinessLogo(businessData.logo_url);
       }
 
       // Fetch overall stats from view
       const { data: viewData, error: viewError } = await supabase
-        .from('vehicle_avg_last_7d')
-        .select('avg_stars, num_ratings')
-        .eq('vehicle_id', vId)
+        .from('business_stats')
+        .select('avg_rating, total_reviews')
+        .eq('business_id', bId)
         .maybeSingle();
 
       // View data error is non-critical, continue without it
       if (viewError) {
-        console.error('Error fetching vehicle stats view (non-critical):', viewError);
+        console.error('Error fetching business stats view (non-critical):', viewError);
       }
 
-      // Fetch all ratings for this vehicle
-      const { data: ratingsData, error: ratingsError } = await supabase
-        .from('rating')
-        .select('stars, tag_ratings, comment, created_at')
-        .eq('vehicle_id', vId)
+      // Fetch all reviews for this business
+      const { data: reviewsData, error: reviewsError } = await supabase
+        .from('review')
+        .select('stars, tags, tag_ratings, comment, created_at')
+        .eq('business_id', bId)
+        .eq('is_public', true)
         .order('created_at', { ascending: false })
         .limit(10);
 
-      if (ratingsError) {
-        console.error('Error fetching ratings for stats:', ratingsError);
-        throw new Error(`Unable to fetch ratings: ${ratingsError.message || 'Database error'}`);
+      if (reviewsError) {
+        console.error('Error fetching reviews for stats:', reviewsError);
+        throw new Error(`Unable to fetch reviews: ${reviewsError.message || 'Database error'}`);
       }
 
       // Calculate overall stats
-      const allRatings = ratingsData || [];
-      const avgStars = viewData?.avg_stars 
-        ? parseFloat(viewData.avg_stars.toString()) 
-        : allRatings.length > 0
-          ? allRatings.reduce((sum, r) => sum + r.stars, 0) / allRatings.length
+      const allReviews = reviewsData || [];
+      const avgStars = viewData?.avg_rating 
+        ? parseFloat(viewData.avg_rating.toString()) 
+        : allReviews.length > 0
+          ? allReviews.reduce((sum, r) => sum + r.stars, 0) / allReviews.length
           : 0;
-      const numRatings = viewData?.num_ratings || allRatings.length;
+      const numRatings = viewData?.total_reviews || allReviews.length;
 
-      // Calculate tag averages
+      // Calculate tag averages from tags array and tag_ratings
       const tagAverages: Record<string, number> = {};
       const tagCounts: Record<string, number> = {};
       
-      allRatings.forEach(rating => {
-        if (rating.tag_ratings && typeof rating.tag_ratings === 'object') {
-          Object.entries(rating.tag_ratings).forEach(([tag, stars]) => {
+      allReviews.forEach(review => {
+        // Use tags array if available
+        if (review.tags && Array.isArray(review.tags)) {
+          review.tags.forEach(tag => {
+            tagAverages[tag] = (tagAverages[tag] || 0) + review.stars;
+            tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+          });
+        }
+        // Also check tag_ratings for detailed ratings
+        if (review.tag_ratings && typeof review.tag_ratings === 'object') {
+          Object.entries(review.tag_ratings).forEach(([tag, stars]) => {
             if (typeof stars === 'number' && stars > 0) {
               tagAverages[tag] = (tagAverages[tag] || 0) + stars;
               tagCounts[tag] = (tagCounts[tag] || 0) + 1;
@@ -1452,7 +1476,7 @@ function AppContent() {
       });
 
       // Get recent comments
-      const recentComments = allRatings
+      const recentComments = allReviews
         .filter(r => r.comment && r.comment.trim())
         .map(r => ({
           comment: r.comment!,
@@ -1468,14 +1492,14 @@ function AppContent() {
         recentComments
       });
     } catch (error) {
-      console.error('Error in fetchVehicleStats:', error);
+      console.error('Error in fetchBusinessStats:', error);
       const errorMessage = error instanceof Error 
         ? error.message 
-        : 'Unable to load vehicle statistics. Please check your connection and try again.';
+        : 'Unable to load business statistics. Please check your connection and try again.';
       
       // Check if it's a permission/RLS error
       if (errorMessage.includes('permission') || errorMessage.includes('policy') || errorMessage.includes('RLS')) {
-        setScanError('Permission denied. Unable to view stats for this vehicle.');
+        setScanError('Permission denied. Unable to view stats for this business.');
       } else if (errorMessage.includes('network') || errorMessage.includes('fetch')) {
         setScanError('Network error. Please check your connection and try again.');
       } else {
@@ -1489,216 +1513,259 @@ function AppContent() {
 
   const onScan = async (result: BarcodeScanningResult) => {
     const data = result.data;
-    // Accept formats: kombirate://v/<vehicleId> or raw vehicle id
-    let scannedVehicleId: string | null = null;
+    // Accept formats: 
+    // - URL: https://yourapp.com/review/abc123 or http://yourapp.com/review/abc123
+    // - Short code: abc123
+    let scannedCode: string | null = null;
+    
     try {
-      if (data.startsWith('kombirate://')) {
+      // Check if it's a URL
+      if (data.startsWith('http://') || data.startsWith('https://')) {
         const url = new URL(data);
-        const segs = url.pathname.split('/').filter(Boolean);
-        if (segs[0] === 'v' && segs[1]) {
-          scannedVehicleId = segs[1];
+        const pathParts = url.pathname.split('/').filter(Boolean);
+        if (pathParts[pathParts.length - 2] === 'review' && pathParts[pathParts.length - 1]) {
+          scannedCode = pathParts[pathParts.length - 1];
         }
-      } else {
-        scannedVehicleId = data;
+      } 
+      // Assume it's a short code
+      else {
+        scannedCode = data;
       }
     } catch {
-      scannedVehicleId = data;
+      // If URL parsing fails, assume it's a short code
+      scannedCode = data;
     }
     
-    // Validate that scannedVehicleId is a valid UUID before proceeding
-    if (!scannedVehicleId || !isValidUUID(scannedVehicleId)) {
-      setScanError('Invalid QR code. Please scan a valid vehicle QR code.');
-      setScanning(false);
-      return;
-    }
-    
-    if (scannedVehicleId) {
-      // Fetch vehicle to get route_id and reg_number
-      try {
-        const { data: vehicleData, error: vehicleLookupError } = await supabase
-          .from('vehicle')
-          .select('id, route_id, reg_number')
-          .eq('id', scannedVehicleId)
-          .eq('is_active', true)
-          .maybeSingle();
-        
-        if (vehicleLookupError) {
-          console.error('Error looking up vehicle from QR code:', vehicleLookupError);
-          setScanError(`Unable to look up vehicle: ${vehicleLookupError.message || 'Database error'}`);
-          setVehicleId(null);
-          setRouteId(null);
-          setVehicleRegNumber('');
-        } else if (vehicleData) {
-          setVehicleId(vehicleData.id);
-          setRouteId(vehicleData.route_id);
-          setVehicleRegNumber(vehicleData.reg_number);
-          setScanError(''); // Clear any previous errors
-          if (viewMode === 'stats') {
-            await fetchVehicleStats(vehicleData.id);
-          }
-        } else {
-          // Vehicle not found - show error message
-          setScanError('Vehicle not found. This QR code may be invalid or the vehicle may have been removed.');
-          setVehicleId(null);
-          setRouteId(null);
-          setVehicleRegNumber('');
-        }
-      } catch (err) {
-        const errorMessage = err instanceof Error && err.message.includes('network')
-          ? 'Network error. Please check your connection and try again.'
-          : 'Unable to look up vehicle. Please try again.';
-        setScanError(errorMessage);
-        setVehicleId(null);
-        setRouteId(null);
-        setVehicleRegNumber('');
-      }
-    }
+    // Close camera immediately when QR code is detected
     setScanning(false);
-  };
-
-  const handleRegNumberSubmit = async () => {
-    const trimmed = regNumber.trim().toUpperCase();
-    if (!trimmed) {
-      setRegNumberError('Please enter a registration number');
-      return;
-    }
-    if (!countryCode) {
-      setRegNumberError('Please select a country');
-      return;
-    }
-    setRegNumberError('');
-    try {
-      // First, try to find existing vehicle with country code
-      let { data, error } = await supabase
-        .from('vehicle')
-        .select('id, route_id, reg_number, country_code')
-        .eq('reg_number', trimmed)
-        .eq('country_code', countryCode)
-        .eq('is_active', true)
-        .maybeSingle();
-      
-      if (error && error.code !== 'PGRST116') {
-        // PGRST116 is "not found" which is fine, other errors are real problems
-        console.error('Error searching for vehicle:', error);
-        const errorMessage = error.message?.includes('network') || error.message?.includes('fetch')
-          ? 'Network error. Please check your connection and try again.'
-          : `Unable to search for vehicle: ${error.message || 'Database error'}`;
-        setRegNumberError(errorMessage);
-        return;
-      }
-      
-      // If vehicle doesn't exist, create it
-      if (!data) {
-        const { data: newVehicle, error: createError } = await supabase
-          .from('vehicle')
-          .insert({ 
-            reg_number: trimmed, 
-            country_code: countryCode,
-            is_active: true 
-          })
-          .select('id, route_id, reg_number, country_code')
-          .single();
+    setScanError(''); // Clear any previous errors
+    
+    // Handle QR code format
+    if (scannedCode) {
+      console.log('🔍 QR code scanned:', scannedCode);
+      console.log('📱 Current state before API call - businessId:', businessId, 'viewMode:', viewMode);
+      try {
+        // Fetch business by QR code
+        const baseUrl = process.env.EXPO_PUBLIC_APP_URL || 'http://localhost:3000';
+        const apiUrl = `${baseUrl}/api/business/by-code?code=${scannedCode}`;
         
-        if (createError) {
-          console.error('Error creating vehicle:', createError);
-          // Check if it's a unique constraint violation (vehicle was created between check and insert)
-          if (createError.code === '23505') {
-            // Try fetching again
-            const { data: retryData, error: retryError } = await supabase
-              .from('vehicle')
-              .select('id, route_id, reg_number, country_code')
-              .eq('reg_number', trimmed)
-              .eq('country_code', countryCode)
-              .eq('is_active', true)
-              .maybeSingle();
-            
-            if (retryError) {
-              console.error('Error fetching vehicle on retry:', retryError);
-              setRegNumberError(`Unable to register vehicle: ${retryError.message || 'Database error'}`);
-              return;
-            }
-            
-            if (retryData) {
-              data = retryData;
-            } else {
-              setRegNumberError('Unable to register vehicle. The vehicle may have been removed.');
-              return;
-            }
-          } else {
-            // Show actual error message for debugging
-            const errorMsg = createError.message || 'Unknown error';
-            console.error('Vehicle creation failed:', errorMsg, createError);
-            
-            // Check for RLS/permission errors
-            if (createError.code === '42501' || createError.message?.includes('permission') || createError.message?.includes('policy')) {
-              setRegNumberError('Permission denied. Please check your connection and try again.');
-            } else if (createError.message?.includes('network') || createError.message?.includes('fetch')) {
-              setRegNumberError('Network error. Please check your connection and try again.');
-            } else {
-              setRegNumberError(`Unable to register vehicle: ${errorMsg}`);
-            }
-            return;
+        console.log('Fetching business from:', apiUrl);
+        console.log('Current state before fetch - businessId:', businessId, 'viewMode:', viewMode);
+        
+        console.log('Making fetch request...');
+        const response = await fetch(apiUrl, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }).catch((fetchError) => {
+          console.error('Fetch error caught:', fetchError);
+          throw fetchError;
+        });
+        
+        console.log('Response received! Status:', response.status, response.statusText);
+        console.log('Response headers:', JSON.stringify([...response.headers.entries()]));
+        
+        if (!response.ok) {
+          console.error('Response not OK. Status:', response.status);
+          let errorData;
+          try {
+            const text = await response.text();
+            console.error('Error response body:', text);
+            errorData = JSON.parse(text);
+          } catch (e) {
+            errorData = { error: `HTTP ${response.status}: ${response.statusText}` };
           }
-        } else if (newVehicle) {
-          data = newVehicle;
-        } else {
-          console.error('Vehicle creation succeeded but no data returned');
-          setRegNumberError('Vehicle created but no data received. Please try again.');
+          console.error('API error data:', errorData);
+          throw new Error(errorData.error || 'Business not found');
+        }
+        
+        console.log('Parsing response JSON...');
+        let result;
+        try {
+          const responseText = await response.text();
+          console.log('Response text:', responseText.substring(0, 500));
+          result = JSON.parse(responseText);
+        } catch (parseError) {
+          console.error('Failed to parse JSON:', parseError);
+          setScanError('Invalid response from server.');
+          setBusinessId(null);
+          setQrCodeId(null);
+          setBusinessName('');
+          setBusinessLogo(null);
           return;
         }
+        
+        console.log('✅ Business data received:', JSON.stringify(result, null, 2));
+        
+        const business = result?.business;
+        const qrCode = result?.qr_code;
+        
+        if (!business) {
+          console.error('No business in response:', result);
+          setScanError('Business data not found in response.');
+          setBusinessId(null);
+          setQrCodeId(null);
+          setBusinessName('');
+          setBusinessLogo(null);
+          return;
+        }
+        
+        if (business && business.is_active) {
+          console.log('✅ Business found! Setting state...');
+          console.log('Business ID:', business.id);
+          console.log('Business Name:', business.name);
+          console.log('QR Code ID:', qrCode?.id);
+          
+          // Set all state synchronously to trigger re-render
+          const newBusinessId = business.id;
+          const newQrCodeId = qrCode?.id || null;
+          const newBusinessName = business.name || 'Business';
+          const newBusinessLogo = business.logo_url || null;
+          
+          console.log('About to set state with:', {
+            businessId: newBusinessId,
+            qrCodeId: newQrCodeId,
+            businessName: newBusinessName
+          });
+          
+          // Capture current viewMode before state updates
+          const currentViewMode = viewMode;
+          console.log('Setting state now... Current viewMode:', currentViewMode);
+          
+          setBusinessId(newBusinessId);
+          setQrCodeId(newQrCodeId);
+          setBusinessName(newBusinessName);
+          setBusinessLogo(newBusinessLogo);
+          setScanError('');
+          // Don't override viewMode - keep the user's choice (rate or stats)
+          setBusinessCodeError('');
+          
+          console.log('✅ State setters called! businessId:', newBusinessId, 'viewMode:', currentViewMode);
+          
+          // If in stats mode, fetch stats after state is set
+          if (currentViewMode === 'stats') {
+            console.log('📊 Stats mode detected - fetching business stats...');
+            // Use setTimeout to ensure businessId is set before fetching
+            setTimeout(async () => {
+              console.log('Fetching stats for business:', newBusinessId);
+              await fetchBusinessStats(newBusinessId);
+            }, 200);
+          }
+          
+          // Force a re-render check
+          requestAnimationFrame(() => {
+            console.log('After animation frame - state should be updated');
+          });
+          
+          console.log('✅ State updated! Rating page should appear now.');
+        } else {
+          console.error('Business not active or missing');
+          setScanError('Business not found or inactive.');
+          setBusinessId(null);
+          setQrCodeId(null);
+          setBusinessName('');
+          setBusinessLogo(null);
+        }
+      } catch (err) {
+        console.error('Error in onScan:', err);
+        const errorMessage = err instanceof Error 
+          ? (err.message.includes('network') || err.message.includes('fetch') || err.message.includes('Failed to fetch')
+            ? 'Network error. Please check your connection and try again.'
+            : err.message)
+          : 'Unable to look up business. Please try again.';
+        setScanError(errorMessage);
+        setBusinessId(null);
+        setQrCodeId(null);
+        setBusinessName('');
+        setBusinessLogo(null);
       }
+    } else {
+      setScanError('Invalid QR code. Please scan a valid business QR code.');
+      setBusinessId(null);
+      setQrCodeId(null);
+      setBusinessName('');
+      setBusinessLogo(null);
+    }
+  };
+
+  const handleBusinessCodeSubmit = async () => {
+    const trimmed = businessCode.trim();
+    if (!trimmed) {
+      setBusinessCodeError('Please enter a business QR code');
+      return;
+    }
+    setBusinessCodeError('');
+    setScanError('');
+    try {
+      // Fetch business by QR code
+      const baseUrl = process.env.EXPO_PUBLIC_APP_URL || 'http://localhost:3000';
+      const response = await fetch(`${baseUrl}/api/business/by-code?code=${trimmed}`);
       
-      // Validate that we got a valid UUID from the database
-      if (!data || !isValidUUID(data.id)) {
-        setRegNumberError('Invalid vehicle data received. Please try again.');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        setBusinessCodeError(errorData.error || 'Business not found. Please check the QR code.');
         return;
       }
       
-      setVehicleId(data.id);
-      setRouteId(data.route_id && isValidUUID(data.route_id) ? data.route_id : null);
-      setVehicleRegNumber(data.reg_number);
-      setRegNumber('');
-      setRegNumberError(''); // Clear any errors on success
-      if (viewMode === 'stats') {
-        await fetchVehicleStats(data.id);
+      const result = await response.json();
+      const business = result.business;
+      const qrCode = result.qr_code;
+      
+      if (business && business.is_active) {
+        setBusinessId(business.id);
+        setQrCodeId(qrCode?.id || null);
+        setBusinessName(business.name);
+        setBusinessLogo(business.logo_url);
+        setBusinessCode('');
+        setBusinessCodeError('');
+        if (viewMode === 'stats') {
+          await fetchBusinessStats(business.id);
+        }
+      } else {
+        setBusinessCodeError('Business not found or inactive.');
+        setBusinessId(null);
+        setQrCodeId(null);
+        setBusinessName('');
+        setBusinessLogo(null);
       }
     } catch (err) {
-      console.error('Error in handleRegNumberSubmit:', err);
+      console.error('Error in handleBusinessCodeSubmit:', err);
       const errorMessage = err instanceof Error 
         ? (err.message.includes('network') || err.message.includes('fetch')
           ? 'Network error. Please check your connection and try again.'
           : `Error: ${err.message}`)
         : 'Unable to process. Please try again.';
-      setRegNumberError(errorMessage);
+      setBusinessCodeError(errorMessage);
     }
   };
 
-  const enqueue = async (r: PendingRating) => {
+  const enqueue = async (r: PendingReview) => {
     try {
       const stored = await AsyncStorage.getItem(queueKey);
       const arr = stored ? JSON.parse(stored) : [];
       arr.push(r);
       await AsyncStorage.setItem(queueKey, JSON.stringify(arr));
     } catch (error) {
-      // If we can't queue, we'll just lose this rating - better than crashing
+      // If we can't queue, we'll just lose this review - better than crashing
     }
   };
 
   const submit = async () => {
-    if (!vehicleId || stars < 1) return;
+    if (!businessId || stars < 1) return;
     
     setSubmitError('');
     setSubmitLoading(true);
     
     // Validate UUIDs before submitting
-    if (!isValidUUID(vehicleId)) {
-      setSubmitError('Invalid vehicle information. Please try scanning again.');
+    if (!isValidUUID(businessId)) {
+      setSubmitError('Invalid business information. Please try scanning again.');
       setSubmitLoading(false);
       return;
     }
     
-    // Only include route_id if it's a valid UUID
-    const validRouteId = routeId && isValidUUID(routeId) ? routeId : null;
+    // Only include qr_code_id if it's a valid UUID
+    const validQrCodeId = qrCodeId && isValidUUID(qrCodeId) ? qrCodeId : null;
     
     let deviceHashValue: string;
     try {
@@ -1709,85 +1776,109 @@ function AppContent() {
         deviceHashValue = await deviceHash.get();
       }
     } catch (error) {
-      setSubmitError('Unable to process rating. Please try again.');
+      setSubmitError('Unable to process review. Please try again.');
       setSubmitLoading(false);
       return;
     }
     
-    const r: PendingRating = {
-      vehicle_id: vehicleId,
-      route_id: validRouteId,
+    // Upload photos if any
+    let photoUrls: string[] = [];
+    if (photos.length > 0) {
+      try {
+        for (const photoUri of photos) {
+          // Convert URI to blob/file for upload
+          const response = await fetch(photoUri);
+          const blob = await response.blob();
+          const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`;
+          
+          const { data: uploadData, error: uploadError } = await supabase.storage
+            .from('review-photos')
+            .upload(fileName, blob);
+          
+          if (!uploadError && uploadData) {
+            const { data: urlData } = supabase.storage
+              .from('review-photos')
+              .getPublicUrl(uploadData.path);
+            photoUrls.push(urlData.publicUrl);
+          }
+        }
+      } catch (photoError) {
+        console.error('Error uploading photos:', photoError);
+        // Continue without photos if upload fails
+      }
+    }
+    
+    // Convert tag_ratings to tags array
+    const tagsArray = selectedTags.length > 0 
+      ? selectedTags 
+      : Object.entries(tagRatings)
+          .filter(([_, rating]) => rating > 0)
+          .map(([tag, _]) => tag);
+    
+    const r: PendingReview = {
+      business_id: businessId,
+      qr_code_id: validQrCodeId,
       stars,
-      tag_ratings: tagRatings,
+      tags: tagsArray.length > 0 ? tagsArray : undefined,
+      tag_ratings: Object.keys(tagRatings).length > 0 ? tagRatings : undefined,
       comment: comment.trim() || undefined,
+      photo_urls: photoUrls.length > 0 ? photoUrls : undefined,
       device_hash: deviceHashValue,
       created_at: new Date().toISOString()
     };
+    
     let success = false;
     try {
-      // Convert tag_ratings to tags array for backward compatibility
-      const tagsArray = Object.entries(tagRatings)
-        .filter(([_, rating]) => rating > 0)
-        .map(([tag, _]) => tag);
-      
-      // Build insert payload - only include tag_ratings if we have ratings
+      // Build insert payload
       const insertPayload: any = {
-        vehicle_id: r.vehicle_id,
+        business_id: r.business_id,
         stars: r.stars,
-        tags: tagsArray, // Tags that were rated (for backward compatibility)
+        tags: r.tags,
         comment: r.comment,
+        photo_urls: r.photo_urls,
         device_hash: r.device_hash,
         created_at: r.created_at
       };
       
-      // Only include route_id if it's valid
-      if (validRouteId) {
-        insertPayload.route_id = validRouteId;
+      // Only include qr_code_id if it's valid
+      if (validQrCodeId) {
+        insertPayload.qr_code_id = validQrCodeId;
       }
       
-      // Try to include tag_ratings if we have any
-      // If column doesn't exist, we'll retry without it
-      if (Object.keys(tagRatings).length > 0) {
-        insertPayload.tag_ratings = tagRatings;
+      // Include tag_ratings if we have any
+      if (r.tag_ratings && Object.keys(r.tag_ratings).length > 0) {
+        insertPayload.tag_ratings = r.tag_ratings;
       }
       
-      let { data: ratingData, error } = await supabase.from('rating').insert(insertPayload).select('id').single();
-      
-      // If error is about missing tag_ratings column, retry without it
-      // The column needs to be added to the database for tag ratings to work
-      if (error && (error.code === 'PGRST204' || error.code === '42703') && 
-          (error.message?.includes('tag_ratings') || error.message?.includes('column'))) {
-        // Remove tag_ratings and retry without it (ratings will still save, just without individual tag ratings)
-        const retryPayload = { ...insertPayload };
-        delete retryPayload.tag_ratings;
-        const retryResult = await supabase.from('rating').insert(retryPayload).select('id').single();
-        error = retryResult.error;
-        ratingData = retryResult.data;
-      }
+      let { data: reviewData, error } = await supabase.from('review').insert(insertPayload).select('id').single();
       
       if (error) {
-        // Handle duplicate rating constraint (user already rated this vehicle in this hour)
-        if (error.code === '23505' && error.message?.includes('uniq_rating_device_vehicle_hour')) {
-          setSubmitError('You\'ve already rated this vehicle. You can submit another rating in an hour.');
+        // Handle duplicate review constraint (user already reviewed this business in this hour)
+        if (error.code === '23505' && error.message?.includes('uniq_review_device_business_hour')) {
+          setSubmitError('You\'ve already reviewed this business. You can submit another review in an hour.');
           setSubmitLoading(false);
           // Reset the form
           setStars(0);
           setTagRatings({});
+          setSelectedTags([]);
           setComment('');
+          setPhotos([]);
           return;
         }
         
-        // Handle daily rating limit exceeded
-        if (error.message?.includes('daily_rating_limit_exceeded')) {
+        // Handle daily review limit exceeded
+        if (error.message?.includes('daily_review_limit_exceeded')) {
           // Extract the count from the error message if available
-          const match = error.message.match(/already submitted (\d+) ratings today/);
+          const match = error.message.match(/already submitted (\d+) reviews today/);
           const count = match ? match[1] : '4';
-          setSubmitError(`Maximum of 4 ratings per day reached. You have already submitted ${count} ratings today. Please try again tomorrow.`);
+          setSubmitError(`Maximum of 4 reviews per day reached. You have already submitted ${count} reviews today. Please try again tomorrow.`);
           setSubmitLoading(false);
           // Reset the form
           setStars(0);
           setTagRatings({});
+          setSelectedTags([]);
           setComment('');
+          setPhotos([]);
           return;
         }
         
@@ -1799,11 +1890,11 @@ function AppContent() {
         
         if (isNetworkError) {
           await enqueue(r);
-          setSubmitError('No internet connection. Your rating has been saved and will be submitted automatically when you have a connection.');
+          setSubmitError('No internet connection. Your review has been saved and will be submitted automatically when you have a connection.');
         } else {
           // Database or other error - show the actual error
           console.error('Database error:', error);
-          setSubmitError(`Error: ${error.message || 'Unable to submit rating'}`);
+          setSubmitError(`Error: ${error.message || 'Unable to submit review'}`);
         }
         setSubmitLoading(false);
         return;
@@ -1812,11 +1903,10 @@ function AppContent() {
       // Success!
       success = true;
       
-      // Award points directly using the same device_hash that was used for the rating
-      if (ratingData?.id) {
+      // Award points directly using the same device_hash that was used for the review
+      if (reviewData?.id) {
         try {
-          // Use the same deviceHashValue that was used for the rating
-          // This ensures consistency between rating and points for both logged-in and anonymous users
+          // Use the same deviceHashValue that was used for the review
           const hash = deviceHashValue;
           
           // Get points rule
@@ -1839,7 +1929,6 @@ function AppContent() {
             .maybeSingle();
           
           if (currentPointsError && currentPointsError.code !== 'PGRST116') {
-            // PGRST116 is "not found" which is fine for first-time users
             console.error('Error fetching current points:', currentPointsError);
           }
           
@@ -1861,28 +1950,24 @@ function AppContent() {
             throw upsertError;
           }
           
-          // Record transaction
+          // Record transaction (update to use review_id)
           const { error: transactionError } = await supabase
             .from('points_transaction')
             .insert({
               device_hash: hash,
               points_amount: pointsToAward,
               transaction_type: 'earn_rating',
-              rating_id: ratingData.id,
-              description: 'Rating submitted',
-              balance_after: newAvailable
+              review_id: reviewData.id,
+              description: 'Review submitted'
             });
           
           if (transactionError) {
             console.error('Error recording points transaction:', transactionError);
-            // Transaction recording failure is non-critical, but log it
           }
           
-          // Store points and schedule notification to show after thank you screen
+          // Store points and schedule notification
           if (!upsertError) {
             setPointsEarned(pointsToAward);
-            // Show notification after the thank you screen is dismissed
-            // Delay by 1500ms (thank you screen duration) + 500ms buffer = 2000ms total
             setTimeout(() => {
               setShowPointsNotification(true);
             }, 2000);
@@ -1901,7 +1986,7 @@ function AppContent() {
       
       if (isNetworkError) {
         await enqueue(r);
-        setSubmitError('No internet connection. Your rating has been saved and will be submitted automatically when you have a connection.');
+        setSubmitError('No internet connection. Your review has been saved and will be submitted automatically when you have a connection.');
       } else {
         // Show actual error for debugging
         const errorMsg = err instanceof Error ? err.message : 'Unknown error occurred';
@@ -1916,30 +2001,15 @@ function AppContent() {
     // Only show tip prompt if submission was successful
     if (success) {
       setSubmitError('');
-      // Tipping disabled for now - go straight to thanks screen
       setStars(0); 
       setTagRatings({}); 
+      setSelectedTags([]);
       setComment('');
-      setVehicleId(null);
-      setRouteId(null);
+      setPhotos([]);
+      setBusinessId(null);
+      setQrCodeId(null);
       setThanks(true);
       setTimeout(() => setThanks(false), 1500);
-      
-      // Tipping code (disabled):
-      // setLastRatingId(ratingData?.id || null);
-      // try {
-      //   const hash = await deviceHash.get();
-      //   setTipDeviceHash(hash);
-      //   setShowTipPrompt(true);
-      // } catch (error) {
-      //   setStars(0); 
-      //   setTagRatings({}); 
-      //   setComment('');
-      //   setVehicleId(null);
-      //   setRouteId(null);
-      //   setThanks(true);
-      //   setTimeout(() => setThanks(false), 1500);
-      // }
     }
   };
 
@@ -1950,9 +2020,11 @@ function AppContent() {
     // Clear form fields after tip is complete
     setStars(0); 
     setTagRatings({}); 
+    setSelectedTags([]);
     setComment('');
-    setVehicleId(null);
-    setRouteId(null);
+    setPhotos([]);
+    setBusinessId(null);
+    setQrCodeId(null);
     setThanks(true);
     setTimeout(() => setThanks(false), 1500);
   };
@@ -1964,27 +2036,32 @@ function AppContent() {
     // Clear form fields after tip is skipped
     setStars(0); 
     setTagRatings({}); 
+    setSelectedTags([]);
     setComment('');
-    setVehicleId(null);
-    setRouteId(null);
+    setPhotos([]);
+    setBusinessId(null);
+    setQrCodeId(null);
     setThanks(true);
     setTimeout(() => setThanks(false), 1500);
   };
 
   const handleMenuNavigate = (screen: 'login' | 'dashboard' | 'profile' | 'home') => {
     setCurrentScreen(screen);
-    // When navigating to home, clear vehicle state to exit stats/rating views
+    // When navigating to home, clear business state to exit stats/rating views
     if (screen === 'home') {
-      setVehicleId(null);
-      setRouteId(null);
+      setBusinessId(null);
+      setQrCodeId(null);
       setStats(null);
-      setVehicleRegNumber('');
-      setRegNumber('');
-      setRegNumberError('');
+      setBusinessName('');
+      setBusinessLogo(null);
+      setBusinessCode('');
+      setBusinessCodeError('');
       setScanError('');
       setStars(0);
       setTagRatings({});
+      setSelectedTags([]);
       setComment('');
+      setPhotos([]);
       setViewMode('rate'); // Reset to rate mode
     }
   };
@@ -1992,16 +2069,19 @@ function AppContent() {
   const handleMenuLogout = async () => {
     try {
       // Clear all app state first
-      setVehicleId(null);
-      setRouteId(null);
+      setBusinessId(null);
+      setQrCodeId(null);
       setStats(null);
-      setVehicleRegNumber('');
-      setRegNumber('');
-      setRegNumberError('');
+      setBusinessName('');
+      setBusinessLogo(null);
+      setBusinessCode('');
+      setBusinessCodeError('');
       setScanError('');
       setStars(0);
       setTagRatings({});
+      setSelectedTags([]);
       setComment('');
+      setPhotos([]);
       setThanks(false);
       setSubmitError('');
       setShowPointsNotification(false);
@@ -2020,8 +2100,8 @@ function AppContent() {
       // Even if logout fails, ensure we're redirected to home and state is cleared
       setCurrentScreen('home');
       setUser(null);
-      setVehicleId(null);
-      setRouteId(null);
+      setBusinessId(null);
+      setQrCodeId(null);
       setStats(null);
     }
   };
@@ -2143,9 +2223,6 @@ function AppContent() {
           onNavigateProfile={() => {
             setCurrentScreen('profile');
           }}
-          onRateVehicle={() => {
-            setCurrentScreen('home');
-          }}
           getDeviceHash={deviceHash.get}
         />
         <QuickLinksFooter 
@@ -2196,7 +2273,7 @@ function AppContent() {
     );
   }
 
-  if (!vehicleId) {
+  if (!businessId) {
     return (
       <View style={styles.homeContainer}>
         <ThemeToggleButton />
@@ -2208,9 +2285,9 @@ function AppContent() {
         >
           <View style={styles.homeContent}>
             <View style={styles.iconContainer}>
-              <Text style={styles.icon}>🚐</Text>
+              <FontAwesome name="qrcode" size={80} color="#2563eb" />
             </View>
-            <Text style={styles.header}>RateMyRide</Text>
+            <Text style={styles.header}>QrRate</Text>
             {scanError ? (
               <View style={styles.errorContainer}>
                 <Text style={styles.errorText}>{scanError}</Text>
@@ -2238,7 +2315,7 @@ function AppContent() {
           <Pressable
             onPress={() => {
               setScanError(''); // Clear error when starting new scan
-              setRegNumberError(''); // Clear reg number errors too
+              setBusinessCodeError(''); // Clear business code errors too
               setScanning(true);
             }}
             style={styles.scanButton}
@@ -2246,54 +2323,6 @@ function AppContent() {
             <Text style={styles.scanButtonText}>Scan QR Code</Text>
           </Pressable>
 
-          <View style={styles.divider}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>OR</Text>
-            <View style={styles.dividerLine} />
-          </View>
-
-          <View style={styles.inputSection}>
-            {/* Country Selector - Hidden if user is logged in and has a saved country */}
-            {!(user && userHasCountry) && (
-              <TouchableOpacity
-                style={styles.countryButton}
-                onPress={() => setShowCountryPicker(true)}
-              >
-                <Text style={styles.countryButtonText}>
-                  {countries.find(c => c.code === countryCode)?.flag} {countries.find(c => c.code === countryCode)?.name || 'Select Country'}
-                </Text>
-                <FontAwesome name="chevron-down" size={14} color={theme.textSecondary} />
-              </TouchableOpacity>
-            )}
-
-            <TextInput
-              placeholder="Registration Number"
-              value={regNumber}
-              onChangeText={(text) => {
-                setRegNumber(text.toUpperCase());
-                setRegNumberError('');
-              }}
-              style={[styles.regInput, regNumberError && styles.regInputError]}
-              placeholderTextColor="#9ca3af"
-              autoCapitalize="characters"
-              autoCorrect={false}
-            />
-            {regNumberError ? (
-              <Text style={styles.errorText}>{regNumberError}</Text>
-            ) : null}
-            
-            {/* Continue Button - moved up */}
-            <Pressable
-              onPress={handleRegNumberSubmit}
-              style={[styles.submitRegButton, !regNumber.trim() && styles.submitRegButtonDisabled]}
-              disabled={!regNumber.trim()}
-            >
-              <Text style={[styles.submitRegButtonText, !regNumber.trim() && styles.submitRegButtonTextDisabled]}>
-                Continue
-              </Text>
-            </Pressable>
-          </View>
-          <View style={styles.submitRegButtonSpacer} />
         </ScrollView>
 
         {/* Quick Links Footer */}
@@ -2354,8 +2383,13 @@ function AppContent() {
     );
   }
 
+  // Debug: Log current state
+  if (__DEV__) {
+    console.log('Render check - businessId:', businessId, 'viewMode:', viewMode, 'businessName:', businessName);
+  }
+
   // Show stats view if in stats mode
-  if (viewMode === 'stats' && vehicleId) {
+  if (viewMode === 'stats' && businessId) {
     return (
       <View style={styles.ratingPageContainer}>
         <ThemeToggleButton />
@@ -2367,18 +2401,19 @@ function AppContent() {
           <View style={styles.statsHeader}>
             <Pressable
               onPress={() => {
-                setVehicleId(null);
-                setRouteId(null);
+                setBusinessId(null);
+                setQrCodeId(null);
                 setStats(null);
-                setVehicleRegNumber('');
+                setBusinessName('');
+                setBusinessLogo(null);
               }}
               style={styles.backButtonStats}
             >
               <Text style={styles.backButtonText}>← Back</Text>
             </Pressable>
-            <Text style={styles.statsTitle}>Vehicle Stats</Text>
-            {vehicleRegNumber ? (
-              <Text style={styles.statsSubtitle}>{vehicleRegNumber}</Text>
+            <Text style={styles.statsTitle}>Business Stats</Text>
+            {businessName ? (
+              <Text style={styles.statsSubtitle}>{businessName}</Text>
             ) : null}
           </View>
 
@@ -2478,7 +2513,7 @@ function AppContent() {
 
             {stats.numRatings === 0 && (
               <View style={styles.statsCard}>
-                <Text style={styles.noDataText}>No ratings yet for this vehicle.</Text>
+                <Text style={styles.noDataText}>No reviews yet for this business.</Text>
               </View>
             )}
           </View>
@@ -2493,10 +2528,11 @@ function AppContent() {
             )}
             <Pressable
               onPress={() => {
-                setVehicleId(null);
-                setRouteId(null);
+                setBusinessId(null);
+                setQrCodeId(null);
                 setStats(null);
-                setVehicleRegNumber('');
+                setBusinessName('');
+                setBusinessLogo(null);
                 setScanError('');
               }}
               style={styles.button}
@@ -2522,7 +2558,7 @@ function AppContent() {
       <ThemeToggleButton />
       <View style={styles.headerContainer}>
         <View style={styles.ratingHeader}>
-          <Text style={styles.ratingTitle}>RateMyRide</Text>
+          <Text style={styles.ratingTitle}>{businessName || 'QrRate'}</Text>
           <Text style={styles.ratingSubtitle}>Share your experience</Text>
         </View>
       </View>
@@ -2594,7 +2630,7 @@ function AppContent() {
               <ActivityIndicator size="small" color="#ffffff" />
             ) : (
               <Text style={[styles.submitButtonText, stars < 1 && styles.submitButtonTextDisabled]}>
-                Submit Rating
+                Submit Review
               </Text>
             )}
           </Pressable>
@@ -2611,17 +2647,6 @@ function AppContent() {
       />
 
       {/* Tipping disabled for now */}
-      {false && showTipPrompt && vehicleId && tipDeviceHash && (
-        <TipPrompt
-          vehicleId={vehicleId}
-          ratingId={lastRatingId}
-          routeId={routeId}
-          vehicleRegNumber={vehicleRegNumber}
-          deviceHash={tipDeviceHash}
-          onComplete={handleTipComplete}
-          onSkip={handleTipSkip}
-        />
-      )}
 
       {/* Points Earned Notification */}
       <PointsEarnedNotification

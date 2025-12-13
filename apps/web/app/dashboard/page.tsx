@@ -3,51 +3,80 @@
 import { useEffect, useState } from 'react'
 import StatsCard from '@/components/dashboard/StatsCard'
 import LoadingSpinner from '@/components/LoadingSpinner'
-import ExpenseBreakdownChart from '@/components/dashboard/ExpenseBreakdownChart'
-import ExpensesVsTipsChart from '@/components/dashboard/ExpensesVsTipsChart'
-import RatingsTrendChart from '@/components/dashboard/RatingsTrendChart'
-import { FaBus, FaStar, FaChartBar, FaGift, FaDollarSign, FaClock, FaChartLine } from 'react-icons/fa'
+import { createClient } from '@/lib/supabase/client'
+import { FaStore, FaStar, FaComments, FaChartBar } from 'react-icons/fa'
+import Link from 'next/link'
 
 interface Stats {
-  total_vehicles: number
-  total_ratings: number
+  total_businesses: number
+  total_reviews: number
   average_rating: number
-  total_tips: number
-  total_tips_amount_cents: number
-  recent_ratings: any[]
-  expense_stats?: {
-    current_month_total: number
-    pending_approvals: number
-    top_category: string
-    expense_breakdown?: Array<{ category: string; amount: number }>
-  }
-  current_month_tips?: number
-  ratings_trend?: Array<{ date: string; average_rating: number }>
-  tips_trend?: Array<{ date: string; total_amount: number }>
+  recent_reviews: any[]
+  reviews_trend?: Array<{ date: string; average_rating: number }>
 }
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<Stats | null>(null)
   const [loading, setLoading] = useState(true)
-  const [sortBy, setSortBy] = useState<'rating' | 'vehicle' | 'date'>('date')
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
-  const [selectedRating, setSelectedRating] = useState<any | null>(null)
-  const [searchQuery, setSearchQuery] = useState<string>('')
-  const [vehicleStats, setVehicleStats] = useState<{
-    avgStars: number
-    numRatings: number
-    tagAverages: Record<string, number>
-  } | null>(null)
-  const [loadingStats, setLoadingStats] = useState(false)
 
   useEffect(() => {
     async function fetchStats() {
       try {
-        const response = await fetch('/api/transporter/stats')
-        if (response.ok) {
-          const data = await response.json()
-          setStats(data)
+        const supabase = createClient()
+        const { data: { user } } = await supabase.auth.getUser()
+        
+        if (!user) {
+          setLoading(false)
+          return
         }
+
+        // Fetch businesses owned by user
+        const { data: businesses } = await supabase
+          .from('business')
+          .select('id')
+          .eq('owner_id', user.id)
+          .eq('is_active', true)
+
+        const businessIds = businesses?.map(b => b.id) || []
+
+        if (businessIds.length === 0) {
+          setStats({
+            total_businesses: 0,
+            total_reviews: 0,
+            average_rating: 0,
+            recent_reviews: [],
+          })
+          setLoading(false)
+          return
+        }
+
+        // Fetch reviews
+        const { data: reviews } = await supabase
+          .from('review')
+          .select('stars, created_at')
+          .in('business_id', businessIds)
+          .eq('is_public', true)
+
+        const totalReviews = reviews?.length || 0
+        const averageRating = reviews && reviews.length > 0
+          ? reviews.reduce((sum, r) => sum + r.stars, 0) / reviews.length
+          : 0
+
+        // Get recent reviews
+        const { data: recentReviews } = await supabase
+          .from('review')
+          .select('*, business:business_id(name, logo_url)')
+          .in('business_id', businessIds)
+          .eq('is_public', true)
+          .order('created_at', { ascending: false })
+          .limit(5)
+
+        setStats({
+          total_businesses: businessIds.length,
+          total_reviews: totalReviews,
+          average_rating: averageRating,
+          recent_reviews: recentReviews || [],
+        })
       } catch (error) {
         console.error('Failed to fetch stats:', error)
       } finally {
@@ -70,407 +99,95 @@ export default function DashboardPage() {
     return <div>Failed to load dashboard</div>
   }
 
-  const tipsAmount = (stats.total_tips_amount_cents / 100).toFixed(2)
-
   return (
     <div>
-      <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-6">Dashboard</h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Dashboard</h1>
+        <Link
+          href="/dashboard/businesses"
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+        >
+          Manage Businesses
+        </Link>
+      </div>
 
-      {/* Expense Stats */}
-      {stats.expense_stats && (
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-3 mb-8">
-          <StatsCard
-            title="Monthly Expenses"
-            value={`$${stats.expense_stats.current_month_total.toFixed(2)}`}
-            icon={<FaDollarSign className="w-8 h-8" />}
-            subtitle="This month"
-            href="/dashboard/expenses"
-          />
-          <StatsCard
-            title="Pending Approvals"
-            value={stats.expense_stats.pending_approvals}
-            icon={<FaClock className="w-8 h-8" />}
-            subtitle="expenses"
-            href="/dashboard/expenses?status=pending"
-          />
-          <StatsCard
-            title="Top Category"
-            value={stats.expense_stats.top_category === 'none' ? 'N/A' : stats.expense_stats.top_category.charAt(0).toUpperCase() + stats.expense_stats.top_category.slice(1).replace('_', ' ')}
-            icon={<FaChartLine className="w-8 h-8" />}
-            subtitle="this month"
-            href={stats.expense_stats.top_category && stats.expense_stats.top_category !== 'none' ? `/dashboard/expenses?category=${stats.expense_stats.top_category}` : '/dashboard/expenses'}
-          />
-        </div>
-      )}
-
+      {/* Stats Cards */}
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 mb-8">
         <StatsCard
-          title="Total Vehicles"
-          value={stats.total_vehicles}
-          icon={<FaBus className="w-8 h-8" />}
-          href="/dashboard/vehicles"
+          title="Total Businesses"
+          value={stats.total_businesses}
+          icon={<FaStore className="w-8 h-8" />}
+          href="/dashboard/businesses"
         />
         <StatsCard
-          title="Total Ratings"
-          value={stats.total_ratings}
-          icon={<FaStar className="w-8 h-8" />}
-          href="/dashboard/ratings"
+          title="Total Reviews"
+          value={stats.total_reviews}
+          icon={<FaComments className="w-8 h-8" />}
         />
         <StatsCard
           title="Average Rating"
           value={stats.average_rating.toFixed(1)}
-          icon={<FaChartBar className="w-8 h-8" />}
+          icon={<FaStar className="w-8 h-8" />}
           subtitle="/ 5.0"
-          href="/dashboard/ratings"
-        />
-        <StatsCard
-          title="Total Tips"
-          value={`$${tipsAmount}`}
-          icon={<FaGift className="w-8 h-8" />}
-          subtitle={`${stats.total_tips} tips`}
-          href="/dashboard/tips"
         />
       </div>
 
-      {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        {/* Expense Breakdown Chart */}
-        {stats.expense_stats?.expense_breakdown && stats.expense_stats.expense_breakdown.length > 0 && (
-          <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
-              Expense Breakdown by Category
-            </h3>
-            <ExpenseBreakdownChart data={stats.expense_stats.expense_breakdown} />
-          </div>
-        )}
-
-        {/* Expenses vs Tips Chart */}
-        {stats.expense_stats && stats.current_month_tips !== undefined && (
-          <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
-              Monthly Expenses vs Tips
-            </h3>
-            <ExpensesVsTipsChart
-              expenses={stats.expense_stats.current_month_total}
-              tips={stats.current_month_tips / 100}
-            />
-          </div>
-        )}
-      </div>
-
-      {/* Ratings Trend Chart - Full Width */}
-      {stats.ratings_trend && stats.ratings_trend.length > 0 && (
-        <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6 mb-8">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
-            Ratings Trend (Last 30 Days)
-          </h3>
-          <RatingsTrendChart data={stats.ratings_trend} />
-        </div>
-      )}
-
-      <div>
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Recent Ratings</h2>
-        </div>
-
-        {/* Search Field */}
-        <div className="mb-4">
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search by vehicle, comment, or tags..."
-            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-gray-100"
-          />
-        </div>
-
-        {stats.recent_ratings.length === 0 ? (
-          <p className="text-gray-500 dark:text-gray-400">No ratings yet</p>
-        ) : (
-          <div className="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
-            {/* Header */}
-            <div className="grid grid-cols-3 gap-4 p-4 bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600">
-              <button
-                onClick={() => {
-                  if (sortBy === 'rating') {
-                    setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
-                  } else {
-                    setSortBy('rating')
-                    setSortOrder('desc')
-                  }
-                }}
-                  className="flex items-center gap-2 text-left text-sm font-semibold text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100"
+      {/* Recent Reviews */}
+      {stats.recent_reviews && stats.recent_reviews.length > 0 && (
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 mb-8">
+          <h2 className="text-2xl font-bold mb-4 text-gray-900 dark:text-gray-100">Recent Reviews</h2>
+          <div className="space-y-4">
+            {stats.recent_reviews.map((review: any) => (
+              <div
+                key={review.id}
+                className="border-b dark:border-gray-700 pb-4 last:border-0"
               >
-                Rating
-                {sortBy === 'rating' && (
-                  <span>{sortOrder === 'asc' ? '↑' : '↓'}</span>
-                )}
-              </button>
-              <button
-                onClick={() => {
-                  if (sortBy === 'vehicle') {
-                    setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
-                  } else {
-                    setSortBy('vehicle')
-                    setSortOrder('asc')
-                  }
-                }}
-                className="flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-gray-900"
-              >
-                Vehicle
-                {sortBy === 'vehicle' && (
-                  <span>{sortOrder === 'asc' ? '↑' : '↓'}</span>
-                )}
-              </button>
-              <button
-                onClick={() => {
-                  if (sortBy === 'date') {
-                    setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
-                  } else {
-                    setSortBy('date')
-                    setSortOrder('desc')
-                  }
-                }}
-                className="flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-gray-900"
-              >
-                Date
-                {sortBy === 'date' && (
-                  <span>{sortOrder === 'asc' ? '↑' : '↓'}</span>
-                )}
-              </button>
-            </div>
-            {/* Rows */}
-            <div className="divide-y divide-gray-200">
-              {[...stats.recent_ratings]
-                .filter((rating) => {
-                  if (!searchQuery.trim()) return true
-                  
-                  const query = searchQuery.toLowerCase()
-                  const vehicleMatch = rating.vehicle?.reg_number.toLowerCase().includes(query)
-                  const commentMatch = rating.comment?.toLowerCase().includes(query)
-                  const tagsMatch = rating.tags?.some((tag: string) => tag.toLowerCase().includes(query))
-                  
-                  return vehicleMatch || commentMatch || tagsMatch
-                })
-                .sort((a, b) => {
-                  let comparison = 0
-                  if (sortBy === 'rating') {
-                    comparison = a.stars - b.stars
-                  } else if (sortBy === 'vehicle') {
-                    const aReg = a.vehicle?.reg_number || ''
-                    const bReg = b.vehicle?.reg_number || ''
-                    comparison = aReg.localeCompare(bReg)
-                  } else if (sortBy === 'date') {
-                    comparison =
-                      new Date(a.created_at).getTime() -
-                      new Date(b.created_at).getTime()
-                  }
-                  return sortOrder === 'asc' ? comparison : -comparison
-                })
-                .slice(0, 2)
-                .map((rating) => {
-                  const stars = Array.from(
-                    { length: 5 },
-                    (_, i) => i < rating.stars
-                  )
-                  return (
-                    <div
-                      key={rating.id}
-                      onClick={async () => {
-                        setSelectedRating(rating)
-                        // Fetch vehicle stats
-                        const vehicleId = (rating as any).vehicle_id || rating.vehicle?.id
-                        if (vehicleId) {
-                          setLoadingStats(true)
-                          try {
-                            const response = await fetch(`/api/transporter/vehicles/${vehicleId}/stats`)
-                            if (response.ok) {
-                              const data = await response.json()
-                              setVehicleStats(data)
-                            }
-                          } catch (error) {
-                            console.error('Failed to fetch vehicle stats:', error)
-                          } finally {
-                            setLoadingStats(false)
-                          }
-                        }
-                      }}
-                      className="grid grid-cols-3 gap-4 p-4 items-center hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors"
-                    >
-                      <div className="flex">
-                        {stars.map((filled, i) => (
-                          <span key={i} className="text-yellow-400 text-xl">
-                            {filled ? '★' : '☆'}
-                          </span>
-                        ))}
-                      </div>
-                      <div className="flex items-center">
-                        {rating.vehicle && (
-                          <p className="text-sm text-gray-600 dark:text-gray-300">
-                            {rating.vehicle.reg_number}
-                          </p>
-                        )}
-                      </div>
-                      <div className="flex items-center">
-                        <span className="text-sm text-gray-500 dark:text-gray-400">
-                          {new Date(rating.created_at).toLocaleDateString()}
-                        </span>
-                      </div>
-                    </div>
-                  )
-                })}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Rating Details Modal */}
-      {selectedRating && (
-        <div
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-          onClick={() => {
-            setSelectedRating(null)
-            setVehicleStats(null)
-          }}
-        >
-          <div
-            className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="p-6">
-              <div className="flex justify-between items-start mb-4">
-                  <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                    Rating Details
-                  </h3>
-                  <button
-                    onClick={() => {
-                      setSelectedRating(null)
-                      setVehicleStats(null)
-                    }}
-                    className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 text-2xl"
-                  >
-                    ×
-                  </button>
-                </div>
-
-                <div className="space-y-4">
-                  {/* Vehicle */}
-                  {selectedRating.vehicle && (
-                    <div>
-                      <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 block">
-                        Vehicle
-                      </label>
-                      <p className="text-gray-900 dark:text-gray-100">{selectedRating.vehicle.reg_number}</p>
-                    </div>
-                  )}
-
-                  {/* Vehicle Stats */}
-                  {vehicleStats && (
-                    <>
-                      {/* Overall Rating */}
-                      <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 mb-4">
-                        <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 block">
-                          Overall Rating
-                        </label>
-                        <div className="flex items-center gap-4">
-                          <div className="text-4xl font-bold text-gray-900 dark:text-gray-100">
-                            {vehicleStats.avgStars.toFixed(1)}
-                          </div>
-                          <div className="flex flex-col">
-                            <div className="flex">
-                              {Array.from({ length: 5 }, (_, i) => i < Math.round(vehicleStats.avgStars)).map(
-                                (filled, i) => (
-                                  <span key={i} className="text-yellow-400 text-xl">
-                                    {filled ? '★' : '☆'}
-                                  </span>
-                                )
-                              )}
-                            </div>
-                            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                              Based on {vehicleStats.numRatings} {vehicleStats.numRatings === 1 ? 'rating' : 'ratings'}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Average by Category */}
-                      {Object.keys(vehicleStats.tagAverages).length > 0 && (
-                        <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
-                          <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 block">
-                            Average by Category
-                          </label>
-                          <div className="space-y-3">
-                            {['Cleanliness', 'Driving safety', 'Friendliness', 'Punctuality'].map((tag) => {
-                              const avg = vehicleStats.tagAverages[tag]
-                              if (!avg) return null
-                              return (
-                                <div key={tag} className="flex items-center justify-between border-b border-gray-200 dark:border-gray-600 pb-2 last:border-0">
-                                  <span className="text-sm text-gray-700 dark:text-gray-300">{tag}</span>
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                                      {avg.toFixed(1)}
-                                    </span>
-                                    <div className="flex">
-                                      {Array.from({ length: 5 }, (_, i) => i < Math.round(avg)).map(
-                                        (filled, j) => (
-                                          <span key={j} className="text-yellow-400 text-sm">
-                                            {filled ? '★' : '☆'}
-                                          </span>
-                                        )
-                                      )}
-                                    </div>
-                                  </div>
-                                </div>
-                              )
-                            })}
-                          </div>
-                        </div>
-                      )}
-                    </>
-                  )}
-
-                {/* Comment */}
-                  {selectedRating.comment && (
-                    <div>
-                      <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 block">
-                        Comment
-                      </label>
-                      <p className="text-gray-900 dark:text-gray-100">{selectedRating.comment}</p>
-                    </div>
-                  )}
-
-                  {/* Tags */}
-                  {selectedRating.tags && selectedRating.tags.length > 0 && (
-                    <div>
-                      <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 block">
-                        Tags
-                      </label>
-                    <div className="flex flex-wrap gap-2">
-                      {selectedRating.tags.map((tag: string, i: number) => (
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    {review.business?.logo_url && (
+                      <img
+                        src={review.business.logo_url}
+                        alt={review.business.name}
+                        className="w-8 h-8 rounded-full object-cover"
+                      />
+                    )}
+                    <span className="font-medium text-gray-900 dark:text-gray-100">
+                      {review.business?.name || 'Business'}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="flex">
+                      {[1, 2, 3, 4, 5].map((n) => (
                         <span
-                          key={i}
-                          className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                          key={n}
+                          className={review.stars >= n ? 'text-yellow-400' : 'text-gray-300'}
                         >
-                          {tag}
+                          ★
                         </span>
                       ))}
                     </div>
+                    <span className="text-sm text-gray-500 dark:text-gray-400">
+                      {new Date(review.created_at).toLocaleDateString()}
+                    </span>
+                  </div>
+                </div>
+                {review.comment && (
+                  <p className="text-gray-700 dark:text-gray-300 text-sm">{review.comment}</p>
+                )}
+                {review.tags && review.tags.length > 0 && (
+                  <div className="flex gap-1 flex-wrap mt-2">
+                    {review.tags.map((tag: string, i: number) => (
+                      <span
+                        key={i}
+                        className="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded text-xs"
+                      >
+                        {tag}
+                      </span>
+                    ))}
                   </div>
                 )}
               </div>
-
-              <div className="mt-6 flex justify-end">
-                <button
-                    onClick={() => {
-                      setSelectedRating(null)
-                      setVehicleStats(null)
-                    }}
-                    className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600"
-                  >
-                    Close
-                  </button>
-              </div>
-            </div>
+            ))}
           </div>
         </div>
       )}

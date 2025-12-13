@@ -74,14 +74,14 @@ export default function SplashScreen({ onFinish }: SplashScreenProps) {
       >
         {/* Icon/Logo */}
         <View style={dynamicStyles.iconContainer}>
-          <FontAwesome name="bus" size={80} color="#2563eb" />
+          <FontAwesome name="qrcode" size={80} color="#2563eb" />
         </View>
 
         {/* App Name */}
-        <Text style={dynamicStyles.appName}>RateMyRide</Text>
+        <Text style={dynamicStyles.appName}>QrRate</Text>
 
         {/* Tagline */}
-        <Text style={dynamicStyles.tagline}>Rate your ride experience</Text>
+        <Text style={dynamicStyles.tagline}>Review businesses instantly</Text>
 
         {/* Loading indicator */}
         <View style={dynamicStyles.loaderContainer}>

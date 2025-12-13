@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useState, useEffect } from 'react'
-import { FaBus, FaStar, FaChartBar, FaGift } from 'react-icons/fa'
+import { FaStore, FaStar, FaChartBar, FaQrcode, FaCamera } from 'react-icons/fa'
 import { createClient } from '@/lib/supabase/client'
 
 // Android APK download URL
@@ -77,26 +77,20 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 relative overflow-hidden transition-colors duration-200">
       {/* Animated background elements */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-20 left-10 w-72 h-72 bg-blue-200 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-float"></div>
-        <div className="absolute top-40 right-10 w-72 h-72 bg-purple-200 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-float" style={{ animationDelay: '2s' }}></div>
-        <div className="absolute -bottom-32 left-1/2 w-72 h-72 bg-pink-200 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-float" style={{ animationDelay: '4s' }}></div>
-      </div>
-
       {/* Hero Section */}
       <section className="container mx-auto px-4 py-6 md:py-8 relative z-10">
         <div className="text-center max-w-4xl mx-auto animate-fade-in">
           <div className="text-7xl md:text-9xl mb-4 animate-float inline-block text-gray-700 dark:text-gray-300">
-            <FaBus className="w-32 h-32 md:w-40 md:h-40 mx-auto" />
+            <FaQrcode className="w-32 h-32 md:w-40 md:h-40 mx-auto" />
           </div>
           <h1 className="text-5xl md:text-7xl font-extrabold mb-3 gradient-text animate-slide-up tracking-tight">
-            RateMyRide
+            QrRate
           </h1>
           <p className="text-2xl md:text-3xl font-semibold text-gray-800 dark:text-gray-200 mb-3 animate-slide-up tracking-tight" style={{ animationDelay: '0.2s' }}>
-            Rate your ride experience
+            Review businesses instantly
           </p>
           <p className="text-lg md:text-xl text-gray-600 dark:text-gray-300 mb-4 max-w-2xl mx-auto leading-tight tracking-tight animate-slide-up" style={{ animationDelay: '0.4s' }}>
-            Scan QR codes in vehicles to instantly rate your ride. Help others make informed decisions and support drivers.
+            Scan QR codes to instantly review any business. Help others make informed decisions and support local businesses.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center items-center animate-scale-in" style={{ animationDelay: '0.6s' }}>
             <a
@@ -132,7 +126,7 @@ export default function Home() {
         <h2 className="text-4xl md:text-5xl font-extrabold text-center mb-2 gradient-text tracking-tight">
           Key Features
         </h2>
-        <p className="text-center text-gray-600 dark:text-gray-300 mb-6 text-lg tracking-tight leading-tight">Everything you need for a better ride experience</p>
+        <p className="text-center text-gray-600 dark:text-gray-300 mb-6 text-lg tracking-tight leading-tight">Everything you need for instant business reviews</p>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 max-w-7xl mx-auto">
           <div className="group relative text-center p-5 rounded-3xl bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600 hover:shadow-2xl hover:shadow-blue-500/20 transition-all duration-300 hover:-translate-y-2">
             <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-transparent rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
@@ -142,7 +136,7 @@ export default function Home() {
                 QR Code Scanning
               </h3>
               <p className="text-gray-600 dark:text-gray-300 leading-tight tracking-tight">
-                Scan QR codes in vehicles to rate instantly
+                Scan QR codes to review instantly
               </p>
             </div>
           </div>
@@ -156,7 +150,7 @@ export default function Home() {
                 Rating System
               </h3>
               <p className="text-gray-600 dark:text-gray-300 leading-tight tracking-tight">
-                Rate cleanliness, safety, friendliness, and punctuality
+                Rate businesses with stars and tags
               </p>
             </div>
           </div>
@@ -170,7 +164,7 @@ export default function Home() {
                 View Stats
               </h3>
               <p className="text-gray-600 dark:text-gray-300 leading-tight tracking-tight">
-                See ratings and reviews before you ride
+                See ratings and reviews before you visit
               </p>
             </div>
           </div>
@@ -178,13 +172,13 @@ export default function Home() {
             <div className="absolute inset-0 bg-gradient-to-br from-yellow-500/10 to-transparent rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
             <div className="relative">
               <div className="text-5xl mb-3 transform group-hover:scale-110 transition-transform duration-300 text-pink-500 dark:text-pink-400">
-                <FaGift className="w-16 h-16 mx-auto" />
+                <FaCamera className="w-16 h-16 mx-auto" />
               </div>
               <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2 tracking-tight">
-                Tipping
+                Photo Reviews
               </h3>
               <p className="text-gray-600 dark:text-gray-300 leading-tight tracking-tight">
-                Support drivers with tips
+                Upload photos with your reviews
               </p>
             </div>
           </div>
@@ -210,7 +204,7 @@ export default function Home() {
                 Scan or Search
               </h3>
               <p className="text-gray-600 dark:text-gray-300 leading-tight tracking-tight">
-                Scan the QR code inside the vehicle or enter the registration number
+                Scan the QR code at the business or enter the business code
               </p>
             </div>
             <div className="group relative text-center">
@@ -224,7 +218,7 @@ export default function Home() {
                 Rate Your Experience
               </h3>
               <p className="text-gray-600 dark:text-gray-300 leading-tight tracking-tight">
-                Rate cleanliness, safety, friendliness, and punctuality with stars
+                Rate the business with stars, tags, and optional comments
               </p>
             </div>
             <div className="group relative text-center">
@@ -238,7 +232,7 @@ export default function Home() {
                 Share & Support
               </h3>
               <p className="text-gray-600 dark:text-gray-300 leading-tight tracking-tight">
-                Your rating helps others, and you can optionally tip the driver
+                Your review helps others make informed decisions
               </p>
             </div>
           </div>
@@ -254,7 +248,7 @@ export default function Home() {
               Download the App
             </h2>
             <p className="text-xl text-gray-600 dark:text-gray-300 mb-4 max-w-2xl mx-auto leading-tight tracking-tight">
-              Get started today and help build a better ride experience for everyone
+              Get started today and help build a better review experience for everyone
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
               <a
@@ -292,20 +286,20 @@ export default function Home() {
       <footer className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white py-4 relative z-10 border-t border-gray-700/50">
         <div className="container mx-auto px-4 text-center">
           <div className="text-3xl mb-2 text-gray-700 dark:text-gray-300">
-            <FaBus className="w-12 h-12 mx-auto" />
+            <FaStore className="w-12 h-12 mx-auto" />
           </div>
           <p className="text-2xl font-bold mb-1 bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-400 tracking-tight">
-            RateMyRide
+            QrRate
           </p>
           <p className="text-gray-400 text-sm mb-3">
-            © {new Date().getFullYear()} RateMyRide. All rights reserved.
+            © {new Date().getFullYear()} QrRate. All rights reserved.
           </p>
           <div className="mt-2">
             <a
               href={isLoggedIn ? "/dashboard" : "/auth/login"}
               className="text-blue-400 hover:text-blue-300 text-sm"
             >
-              {isLoggedIn ? "Transporter Dashboard" : "Transporter Login"}
+              {isLoggedIn ? "Business Dashboard" : "Business Login"}
             </a>
           </div>
         </div>

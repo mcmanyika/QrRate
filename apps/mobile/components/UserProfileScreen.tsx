@@ -6,14 +6,14 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../contexts/ThemeContext';
 import { getCountries, type Country } from '../utils/countries';
 
-interface RatingHistoryItem {
+interface ReviewHistoryItem {
   id: string;
-  vehicle_id: string;
+  business_id: string;
   stars: number;
   comment: string | null;
   created_at: string;
-  vehicle: {
-    reg_number: string;
+  business: {
+    name: string;
   } | null;
 }
 
@@ -29,13 +29,13 @@ export default function UserProfileScreen({ onLogout, onBack, getDeviceHash, onO
   const styles = useMemo(() => getStyles(theme), [theme]);
   
   const [user, setUser] = useState<any>(null);
-  const [ratings, setRatings] = useState<RatingHistoryItem[]>([]);
+  const [ratings, setRatings] = useState<ReviewHistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 4;
-  const [selectedRating, setSelectedRating] = useState<RatingHistoryItem | null>(null);
+  const [selectedRating, setSelectedRating] = useState<ReviewHistoryItem | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [profileCountryCode, setProfileCountryCode] = useState<string | null>(null);
@@ -59,7 +59,7 @@ export default function UserProfileScreen({ onLogout, onBack, getDeviceHash, onO
       if (currentUser) {
         // For logged-in users, fetch by user_id
         const { data: profileData } = await supabase
-          .from('rider_profile')
+          .from('profile')
           .select('country_code')
           .eq('user_id', currentUser.id)
           .maybeSingle();
@@ -70,7 +70,7 @@ export default function UserProfileScreen({ onLogout, onBack, getDeviceHash, onO
       } else {
         // For anonymous users, fetch by device_hash
         const { data: profileData } = await supabase
-          .from('rider_profile')
+          .from('profile')
           .select('country_code')
           .eq('device_hash', deviceHash)
           .maybeSingle();
@@ -80,26 +80,26 @@ export default function UserProfileScreen({ onLogout, onBack, getDeviceHash, onO
         }
       }
 
-      // Fetch ratings by device_hash
-      const { data: ratingsData, error: ratingsError } = await supabase
-        .from('rating')
+      // Fetch reviews by device_hash
+      const { data: reviewsData, error: reviewsError } = await supabase
+        .from('review')
         .select(`
           id,
-          vehicle_id,
+          business_id,
           stars,
           comment,
           created_at,
-          vehicle:vehicle_id(reg_number)
+          business:business_id(name)
         `)
         .eq('device_hash', deviceHash)
         .order('created_at', { ascending: false })
         .limit(50);
 
-      if (ratingsError) {
-        console.error('Error fetching ratings:', ratingsError);
-        setError('Unable to load rating history');
+      if (reviewsError) {
+        console.error('Error fetching reviews:', reviewsError);
+        setError('Unable to load review history');
       } else {
-        setRatings(ratingsData || []);
+        setRatings(reviewsData || []);
         setError(null);
       }
     } catch (err) {
@@ -147,7 +147,7 @@ export default function UserProfileScreen({ onLogout, onBack, getDeviceHash, onO
       if (user) {
         // For logged-in users, check if profile exists
         const { data: existingProfile } = await supabase
-          .from('rider_profile')
+          .from('profile')
           .select('id')
           .eq('user_id', user.id)
           .maybeSingle();
@@ -155,7 +155,7 @@ export default function UserProfileScreen({ onLogout, onBack, getDeviceHash, onO
         if (existingProfile) {
           // Update existing profile
           const { error: profileError } = await supabase
-            .from('rider_profile')
+            .from('profile')
             .update({ country_code: profileCountryCode })
             .eq('user_id', user.id);
 
@@ -169,7 +169,7 @@ export default function UserProfileScreen({ onLogout, onBack, getDeviceHash, onO
         } else {
           // Insert new profile
           const { error: profileError } = await supabase
-            .from('rider_profile')
+            .from('profile')
             .insert({
               user_id: user.id,
               country_code: profileCountryCode,
@@ -186,7 +186,7 @@ export default function UserProfileScreen({ onLogout, onBack, getDeviceHash, onO
       } else {
         // For anonymous users, check if profile exists
         const { data: existingProfile } = await supabase
-          .from('rider_profile')
+          .from('profile')
           .select('id')
           .eq('device_hash', deviceHash)
           .maybeSingle();
@@ -194,7 +194,7 @@ export default function UserProfileScreen({ onLogout, onBack, getDeviceHash, onO
         if (existingProfile) {
           // Update existing profile
           const { error: profileError } = await supabase
-            .from('rider_profile')
+            .from('profile')
             .update({ country_code: profileCountryCode })
             .eq('device_hash', deviceHash);
 
@@ -208,7 +208,7 @@ export default function UserProfileScreen({ onLogout, onBack, getDeviceHash, onO
         } else {
           // Insert new profile
           const { error: profileError } = await supabase
-            .from('rider_profile')
+            .from('profile')
             .insert({
               device_hash: deviceHash,
               country_code: profileCountryCode,
@@ -238,7 +238,7 @@ export default function UserProfileScreen({ onLogout, onBack, getDeviceHash, onO
       
       if (user) {
         const { data: profileData } = await supabase
-          .from('rider_profile')
+          .from('profile')
           .select('country_code')
           .eq('user_id', user.id)
           .maybeSingle();
@@ -250,7 +250,7 @@ export default function UserProfileScreen({ onLogout, onBack, getDeviceHash, onO
         }
       } else {
         const { data: profileData } = await supabase
-          .from('rider_profile')
+          .from('profile')
           .select('country_code')
           .eq('device_hash', deviceHash)
           .maybeSingle();
@@ -328,8 +328,8 @@ export default function UserProfileScreen({ onLogout, onBack, getDeviceHash, onO
             </TouchableOpacity>
           </View>
 
-          {/* Rating History */}
-          <Text style={styles.sectionTitle}>Rating History</Text>
+          {/* Review History */}
+          <Text style={styles.sectionTitle}>Review History</Text>
         </View>
 
         {/* Scrollable Rating History Section */}
@@ -348,8 +348,8 @@ export default function UserProfileScreen({ onLogout, onBack, getDeviceHash, onO
             )}
             {ratings.length === 0 && !error ? (
               <View style={styles.emptyContainer}>
-                <Text style={styles.emptyText}>No ratings yet</Text>
-                <Text style={styles.emptySubtext}>Start rating vehicles to see your history here</Text>
+                <Text style={styles.emptyText}>No reviews yet</Text>
+                <Text style={styles.emptySubtext}>Start reviewing businesses to see your history here</Text>
               </View>
             ) : (
               <>
@@ -366,8 +366,8 @@ export default function UserProfileScreen({ onLogout, onBack, getDeviceHash, onO
                         style={styles.ratingCard}
                       >
                         <View style={styles.ratingHeader}>
-                          <Text style={styles.vehicleReg}>
-                            {rating.vehicle?.reg_number || 'Unknown Vehicle'}
+                          <Text style={styles.businessName}>
+                            {rating.business?.name || 'Unknown Business'}
                           </Text>
                           <View style={styles.starsRow}>
                             {[1, 2, 3, 4, 5].map((n) => (
@@ -452,9 +452,9 @@ export default function UserProfileScreen({ onLogout, onBack, getDeviceHash, onO
                     </View>
 
                     <View style={styles.modalSection}>
-                      <Text style={styles.modalLabel}>Vehicle</Text>
-                      <Text style={styles.modalVehicle}>
-                        {selectedRating.vehicle?.reg_number || 'Unknown Vehicle'}
+                      <Text style={styles.modalLabel}>Business</Text>
+                      <Text style={styles.modalBusiness}>
+                        {selectedRating.business?.name || 'Unknown Business'}
                       </Text>
                     </View>
 
@@ -941,7 +941,7 @@ const getStyles = (theme: any) => StyleSheet.create({
     alignItems: 'center',
     marginBottom: 8,
   },
-  vehicleReg: {
+  businessName: {
     fontSize: 16,
     fontWeight: '700',
     color: theme.text,
@@ -1053,7 +1053,7 @@ const getStyles = (theme: any) => StyleSheet.create({
     letterSpacing: 0.5,
     marginBottom: 8,
   },
-  modalVehicle: {
+  modalBusiness: {
     fontSize: 24,
     fontWeight: '700',
     color: theme.text,

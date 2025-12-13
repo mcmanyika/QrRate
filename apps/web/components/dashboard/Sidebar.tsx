@@ -5,17 +5,12 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
-import { FaChartBar, FaBus, FaUsers, FaWrench, FaDollarSign, FaStar, FaGift, FaUser, FaSignOutAlt, FaBox } from 'react-icons/fa'
+import { FaChartBar, FaStore, FaCalendarAlt, FaUser, FaSignOutAlt } from 'react-icons/fa'
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: FaChartBar },
-  { name: 'Vehicles', href: '/dashboard/vehicles', icon: FaBus },
-  { name: 'Staff', href: '/dashboard/staff', icon: FaUsers },
-  { name: 'Service Providers', href: '/dashboard/service-providers', icon: FaWrench },
-  { name: 'Expenses', href: '/dashboard/expenses', icon: FaDollarSign },
-  { name: 'Ratings', href: '/dashboard/ratings', icon: FaStar },
-  { name: 'Tips', href: '/dashboard/tips', icon: FaGift },
-  { name: 'Packages', href: '/dashboard/packages', icon: FaBox },
+  { name: 'Businesses', href: '/dashboard/businesses', icon: FaStore },
+  { name: 'Events', href: '/dashboard/events', icon: FaCalendarAlt },
   { name: 'Profile', href: '/dashboard/profile', icon: FaUser },
 ]
 
@@ -42,9 +37,9 @@ export default function Sidebar() {
       <div className="flex-1 flex flex-col pt-5 pb-4 overflow-y-auto">
         <div className="flex items-center flex-shrink-0 px-4">
           {isHovered ? (
-            <h1 className="text-xl font-bold whitespace-nowrap">RateMyRide</h1>
+            <h1 className="text-xl font-bold whitespace-nowrap">QrRate</h1>
           ) : (
-            <h1 className="text-xl font-bold whitespace-nowrap">RMR</h1>
+            <h1 className="text-xl font-bold whitespace-nowrap">QR</h1>
           )}
         </div>
         <nav className="mt-5 flex-1 px-2 space-y-1">

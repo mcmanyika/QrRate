@@ -43,8 +43,8 @@ export default function QuickLinksFooter({ user, onNavigate, onLogout }: QuickLi
               style={styles.quickLink}
               onPress={onLogout}
             >
-              <FontAwesome name="sign-out" size={18} color={theme.error} />
-              <Text style={[styles.quickLinkText, { color: theme.error }]}>Logout</Text>
+              <FontAwesome name="sign-out" size={18} color={theme.iconColor} />
+              <Text style={styles.quickLinkText}>Logout</Text>
             </TouchableOpacity>
           </>
         ) : (

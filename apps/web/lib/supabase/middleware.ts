@@ -35,21 +35,21 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  // Check if user has transporter record (only for dashboard routes)
-  let hasTransporter = false
+  // Check if user has business record (only for dashboard routes)
+  let hasBusiness = false
   if (user && request.nextUrl.pathname.startsWith('/dashboard')) {
-    const { data: transporter } = await supabase
-      .from('transporter')
+    const { data: business } = await supabase
+      .from('business')
       .select('id')
-      .eq('user_id', user.id)
-      .single()
-    hasTransporter = !!transporter
+      .eq('owner_id', user.id)
+      .maybeSingle()
+    hasBusiness = !!business
   }
 
-  // Redirect authenticated users away from login/verify-phone (but allow signup if no transporter)
+  // Redirect authenticated users away from login/verify-phone (but allow signup if no business)
   if (
     user &&
-    hasTransporter &&
+    hasBusiness &&
     (request.nextUrl.pathname.startsWith('/auth/login') ||
       request.nextUrl.pathname.startsWith('/auth/verify-phone'))
   ) {
@@ -58,10 +58,10 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  // Redirect authenticated users without transporter trying to access dashboard to signup
+  // Redirect authenticated users without business trying to access dashboard to signup
   if (
     user &&
-    !hasTransporter &&
+    !hasBusiness &&
     request.nextUrl.pathname.startsWith('/dashboard')
   ) {
     const url = request.nextUrl.clone()

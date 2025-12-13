@@ -54,30 +54,31 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Create transporter profile using service role (bypasses RLS)
-    const { data: transporter, error: transporterError } = await supabase
-      .from('transporter')
+    // Create business profile using service role (bypasses RLS)
+    const { data: business, error: businessError } = await supabase
+      .from('business')
       .insert({
-        user_id: authData.user.id,
+        owner_id: authData.user.id,
         name,
         email,
         phone: phone || null,
+        category: 'other',
       })
       .select()
       .single()
 
-    if (transporterError) {
-      // If transporter insert fails, try to clean up the user
+    if (businessError) {
+      // If business insert fails, try to clean up the user
       await supabase.auth.admin.deleteUser(authData.user.id)
       return NextResponse.json(
-        { error: transporterError.message },
+        { error: businessError.message },
         { status: 400 }
       )
     }
 
     return NextResponse.json({
       user: authData.user,
-      transporter,
+      business,
     })
   } catch (error) {
     return NextResponse.json(

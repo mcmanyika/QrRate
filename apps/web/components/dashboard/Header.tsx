@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import ThemeToggle from '@/components/ThemeToggle'
+import { createClient } from '@/lib/supabase/client'
 
 interface Profile {
   name: string
@@ -15,10 +16,13 @@ export default function Header() {
   useEffect(() => {
     async function fetchProfile() {
       try {
-        const response = await fetch('/api/transporter/profile')
-        if (response.ok) {
-          const data = await response.json()
-          setProfile(data)
+        const supabase = createClient()
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user) {
+          setProfile({
+            name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'User',
+            email: user.email || '',
+          })
         }
       } catch (error) {
         console.error('Failed to fetch profile:', error)
