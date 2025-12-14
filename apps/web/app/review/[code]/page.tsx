@@ -25,8 +25,9 @@ export default function ReviewPage() {
 
   const supabase = createClient()
 
-  // Available tags (can be customized per business)
+  // Default tags fallback
   const defaultTags = ['Friendly', 'Fast', 'Great value', 'Clean', 'Professional', 'Helpful']
+  const [campaignTags, setCampaignTags] = useState<string[]>([])
 
   useEffect(() => {
     async function loadQRCode() {
@@ -51,6 +52,13 @@ export default function ReviewPage() {
         // Check if QR code is linked to a campaign directly
         if (qrData.campaign_id && qrData.campaign) {
           setCampaign(qrData.campaign)
+          
+          // Set campaign tags
+          setCampaignTags(
+            qrData.campaign.tags && qrData.campaign.tags.length > 0
+              ? qrData.campaign.tags
+              : defaultTags
+          )
 
           // Load campaign questions
           const { data: questions } = await supabase
@@ -78,6 +86,13 @@ export default function ReviewPage() {
 
           if (eventBusiness?.event) {
             setCampaign(eventBusiness.event)
+            
+            // Set campaign tags
+            setCampaignTags(
+              eventBusiness.event.tags && eventBusiness.event.tags.length > 0
+                ? eventBusiness.event.tags
+                : defaultTags
+            )
 
             // Load campaign questions
             const { data: questions } = await supabase
@@ -100,6 +115,10 @@ export default function ReviewPage() {
 
           if (settings?.custom_tags && settings.custom_tags.length > 0) {
             // Use custom tags if available, otherwise use defaults
+            setCampaignTags(settings.custom_tags)
+          } else if (!eventBusiness?.event) {
+            // Only set default tags if there's no campaign
+            setCampaignTags(defaultTags)
           }
         }
       } catch (error) {
@@ -530,7 +549,7 @@ export default function ReviewPage() {
               What stood out? (Select all that apply)
             </label>
             <div className="flex flex-wrap gap-2">
-              {defaultTags.map((tag) => (
+              {(campaignTags.length > 0 ? campaignTags : defaultTags).map((tag) => (
                 <button
                   key={tag}
                   onClick={() => {

@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 import LoadingSpinner from '@/components/LoadingSpinner'
 import StatsCard from '@/components/dashboard/StatsCard'
 import { FaTrophy, FaStar, FaComments, FaStore, FaQrcode, FaDownload, FaEdit, FaTrash } from 'react-icons/fa'
+import jsPDF from 'jspdf'
 
 export default function EventDashboardPage() {
   const params = useParams()
@@ -284,6 +285,85 @@ export default function EventDashboardPage() {
       alert(error instanceof Error ? error.message : 'Failed to generate QR code')
     } finally {
       setGeneratingQR(false)
+    }
+  }
+
+  const handleExportQRToPDF = async () => {
+    if (!campaignQRCode || !campaignQRCode.qr_code_svg) {
+      alert('No QR code available to export')
+      return
+    }
+
+    try {
+      // Create a temporary canvas to convert SVG to image
+      const canvas = document.createElement('canvas')
+      const ctx = canvas.getContext('2d')
+      const img = new Image()
+      
+      // Convert SVG to data URL
+      const svgBlob = new Blob([campaignQRCode.qr_code_svg], { type: 'image/svg+xml;charset=utf-8' })
+      const url = URL.createObjectURL(svgBlob)
+      
+      img.onload = () => {
+        // Set canvas size
+        canvas.width = img.width
+        canvas.height = img.height
+        
+        // Draw image on canvas
+        ctx?.drawImage(img, 0, 0)
+        
+        // Convert canvas to image data
+        const imgData = canvas.toDataURL('image/png')
+        
+        // Create PDF
+        const doc = new jsPDF()
+        const pageWidth = doc.internal.pageSize.getWidth()
+        const pageHeight = doc.internal.pageSize.getHeight()
+        
+        // Calculate QR code size (fit to page width with margins)
+        const margin = 20
+        const topMargin = 40
+        const qrSize = Math.min(pageWidth - margin * 2, 120)
+        const qrX = (pageWidth - qrSize) / 2
+        
+        // Add "Send us quick feedback" text above the QR code
+        doc.setFontSize(20)
+        doc.setFont(undefined, 'bold')
+        const feedbackText = 'Send us quick feedback'
+        const feedbackTextWidth = doc.getTextWidth(feedbackText)
+        const feedbackTextX = (pageWidth - feedbackTextWidth) / 2
+        const feedbackTextY = topMargin - 10
+        doc.text(feedbackText, feedbackTextX, feedbackTextY)
+        
+        const qrY = topMargin + 5
+        
+        // Add QR code image (centered)
+        doc.addImage(imgData, 'PNG', qrX, qrY, qrSize, qrSize)
+        
+        // Add "SCAN ME" text in bold under the QR code
+        doc.setFont(undefined, 'bold')
+        doc.setFontSize(65)
+        const textY = qrY + qrSize + 15
+        const textWidth = doc.getTextWidth('SCAN ME')
+        const textX = (pageWidth - textWidth) / 2
+        doc.text('SCAN ME', textX, textY)
+        
+        // Save PDF
+        doc.save(`qr-code-${campaignQRCode.code}-${new Date().toISOString().split('T')[0]}.pdf`)
+        
+        // Clean up
+        URL.revokeObjectURL(url)
+      }
+      
+      img.onerror = () => {
+        alert('Failed to load QR code image')
+        URL.revokeObjectURL(url)
+      }
+      
+      img.src = url
+    } catch (error) {
+      console.error('Error exporting QR code to PDF:', error)
+      alert('Failed to export QR code to PDF')
     }
   }
 
@@ -652,6 +732,13 @@ export default function EventDashboardPage() {
                   className="flex-1 px-3 py-2 bg-gray-600 text-white rounded text-sm hover:bg-gray-700"
                 >
                   Copy URL
+                </button>
+                <button
+                  onClick={handleExportQRToPDF}
+                  className="flex-1 px-3 py-2 bg-green-600 text-white rounded text-sm hover:bg-green-700 flex items-center justify-center gap-2"
+                >
+                  <FaDownload />
+                  Download PDF
                 </button>
               </div>
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 text-center">

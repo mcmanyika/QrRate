@@ -10,10 +10,8 @@ interface Event {
   name: string
   slug: string
   description?: string
-  start_date?: string
-  end_date?: string
-  location?: string
   campaign_type?: string
+  tags?: string[]
   is_active: boolean
   created_at: string
 }
@@ -36,12 +34,11 @@ export default function EventsPage() {
     name: '',
     description: '',
     campaign_type: 'business',
-    start_date: '',
-    end_date: '',
-    location: '',
+    tags: [] as string[],
     questions: [] as CampaignQuestion[],
   })
   const [submitting, setSubmitting] = useState(false)
+  const [tagsInput, setTagsInput] = useState('')
 
   const addQuestion = () => {
     setFormData({
@@ -171,9 +168,7 @@ export default function EventsPage() {
           slug: finalSlug,
           description: formData.description.trim() || null,
           campaign_type: formData.campaign_type,
-          start_date: formData.start_date || null,
-          end_date: formData.end_date || null,
-          location: formData.location.trim() || null,
+          tags: formData.tags.length > 0 ? formData.tags : null,
           is_active: true,
         })
         .select()
@@ -207,11 +202,10 @@ export default function EventsPage() {
         name: '',
         description: '',
         campaign_type: 'business',
-        start_date: '',
-        end_date: '',
-        location: '',
+        tags: [],
         questions: [],
       })
+      setTagsInput('')
     } catch (err) {
       console.error('Error creating campaign:', err)
       alert('Failed to create campaign')
@@ -300,41 +294,51 @@ export default function EventsPage() {
                 placeholder="Campaign description..."
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-0.5">
-                  Start Date
-                </label>
-                <input
-                  type="date"
-                  value={formData.start_date}
-                  onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
-                  className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100 text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-0.5">
-                  End Date
-                </label>
-                <input
-                  type="date"
-                  value={formData.end_date}
-                  onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
-                  className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100 text-sm"
-                />
-              </div>
-            </div>
+            
+            {/* Tags Section */}
             <div>
               <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-0.5">
-                Location
+                Tags for "What stood out?" (Optional)
               </label>
-              <input
-                type="text"
-                value={formData.location}
-                onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                Add tags that customers can select when reviewing. One per line or comma-separated.
+              </p>
+              <textarea
+                value={tagsInput}
+                onChange={(e) => {
+                  setTagsInput(e.target.value)
+                  // Parse tags on change but don't interfere with typing
+                  const tagsArray = e.target.value
+                    .split(/[,\n]/)
+                    .map(tag => tag.trim())
+                    .filter(tag => tag.length > 0)
+                  setFormData({ ...formData, tags: tagsArray })
+                }}
+                onBlur={(e) => {
+                  // Final parse on blur to ensure all tags are captured
+                  const tagsArray = e.target.value
+                    .split(/[,\n]/)
+                    .map(tag => tag.trim())
+                    .filter(tag => tag.length > 0)
+                  setFormData({ ...formData, tags: tagsArray })
+                  setTagsInput(tagsArray.join(', '))
+                }}
                 className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100 text-sm"
-                placeholder="123 Main St, City, State"
+                placeholder="Friendly, Fast, Great value, Clean, Professional, Helpful"
+                rows={3}
               />
+              {formData.tags.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {formData.tags.map((tag, index) => (
+                    <span
+                      key={index}
+                      className="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded text-xs"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Questions Builder */}
@@ -488,17 +492,6 @@ export default function EventsPage() {
                 {event.description && (
                   <p className="text-gray-600 dark:text-gray-400 text-sm mb-4 line-clamp-2">
                     {event.description}
-                  </p>
-                )}
-                {event.location && (
-                  <p className="text-sm text-gray-500 dark:text-gray-500 mb-2">
-                    📍 {event.location}
-                  </p>
-                )}
-                {event.start_date && (
-                  <p className="text-sm text-gray-500 dark:text-gray-500">
-                    📅 {new Date(event.start_date).toLocaleDateString()}
-                    {event.end_date && ` - ${new Date(event.end_date).toLocaleDateString()}`}
                   </p>
                 )}
                 <div className="mt-4 flex gap-2">

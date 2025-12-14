@@ -8,8 +8,9 @@ import ReviewTrendsChart from '@/components/dashboard/ReviewTrendsChart'
 import RatingDistributionChart from '@/components/dashboard/RatingDistributionChart'
 import QuickCreateCampaignModal from '@/components/dashboard/QuickCreateCampaignModal'
 import { createClient } from '@/lib/supabase/client'
-import { FaQrcode, FaStar, FaComments, FaChartBar, FaCalendar, FaPlus, FaDownload } from 'react-icons/fa'
+import { FaQrcode, FaStar, FaComments, FaChartBar, FaCalendar, FaPlus, FaDownload, FaFilePdf, FaFileCsv, FaChevronDown } from 'react-icons/fa'
 import Link from 'next/link'
+import jsPDF from 'jspdf'
 
 interface CampaignStats {
   total_campaigns: number
@@ -44,130 +45,259 @@ export default function DashboardPage() {
   })
   const [timeframe, setTimeframe] = useState<'daily' | 'weekly' | 'monthly'>('daily')
   const [showQuickCreateModal, setShowQuickCreateModal] = useState(false)
+  const [showExportDropdown, setShowExportDropdown] = useState(false)
 
-  const handleExportReviews = async () => {
-    try {
-      const supabase = createClient()
-      const { data: { user } } = await supabase.auth.getUser()
+  // Shared function to fetch filtered reviews
+  const fetchFilteredReviews = async () => {
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
 
-      if (!user) {
-        alert('Please log in to export reviews')
-        return
+    if (!user) {
+      throw new Error('Please log in to export reviews')
+    }
+
+    // Fetch campaigns
+    const { data: campaigns } = await supabase
+      .from('event')
+      .select('id, name')
+      .eq('organizer_id', user.id)
+      .eq('is_active', true)
+
+    const campaignIds = campaigns?.map((c) => c.id) || []
+    if (campaignIds.length === 0) {
+      throw new Error('No campaigns found')
+    }
+
+    // Build query with filters (same as fetchStats)
+    let reviewQuery = supabase
+      .from('review')
+      .select('*, campaign:campaign_id(name)')
+      .in('campaign_id', campaignIds)
+      .eq('is_public', true)
+
+    if (filters.campaign) {
+      reviewQuery = reviewQuery.eq('campaign_id', filters.campaign)
+    }
+
+    if (filters.rating !== null) {
+      reviewQuery = reviewQuery.eq('stars', filters.rating)
+    }
+
+    if (filters.dateRange) {
+      const now = new Date()
+      let startDate: Date
+
+      if (filters.dateRange === '7d') {
+        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+      } else if (filters.dateRange === '30d') {
+        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+      } else if (filters.dateRange === '90d') {
+        startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000)
+      } else if (filters.dateRange === 'custom' && filters.customDateStart) {
+        startDate = new Date(filters.customDateStart)
+      } else {
+        startDate = new Date(0)
       }
 
-      // Fetch campaigns
-      const { data: campaigns } = await supabase
-        .from('event')
-        .select('id, name')
-        .eq('organizer_id', user.id)
-        .eq('is_active', true)
-
-      const campaignIds = campaigns?.map((c) => c.id) || []
-      if (campaignIds.length === 0) {
-        alert('No campaigns found')
-        return
+      if (filters.dateRange === 'custom' && filters.customDateEnd) {
+        const endDate = new Date(filters.customDateEnd)
+        endDate.setHours(23, 59, 59, 999)
+        reviewQuery = reviewQuery
+          .gte('created_at', startDate.toISOString())
+          .lte('created_at', endDate.toISOString())
+      } else {
+        reviewQuery = reviewQuery.gte('created_at', startDate.toISOString())
       }
+    }
 
-      // Build query with filters (same as fetchStats)
-      let reviewQuery = supabase
-        .from('review')
-        .select('*, campaign:campaign_id(name)')
+    const { data: reviews } = await reviewQuery
+
+    // Apply search filter
+    let filteredReviews = reviews || []
+    if (filters.search.trim()) {
+      const searchTerm = filters.search.toLowerCase()
+      filteredReviews = filteredReviews.filter((r) =>
+        r.comment?.toLowerCase().includes(searchTerm)
+      )
+    }
+
+    // Fetch rating answers from campaign questions for reviews without stars
+    const reviewIds = filteredReviews.map(r => r.id).filter(Boolean)
+    let ratingAnswersMap: Record<string, number> = {}
+
+    if (reviewIds.length > 0) {
+      // Fetch all rating-type questions for these campaigns
+      const { data: ratingQuestions } = await supabase
+        .from('campaign_question')
+        .select('id, campaign_id')
         .in('campaign_id', campaignIds)
-        .eq('is_public', true)
+        .eq('question_type', 'rating')
 
-      if (filters.campaign) {
-        reviewQuery = reviewQuery.eq('campaign_id', filters.campaign)
-      }
+      if (ratingQuestions && ratingQuestions.length > 0) {
+        // Fetch answers for rating-type questions
+        const { data: ratingAnswers } = await supabase
+          .from('campaign_review_answer')
+          .select('answer_rating, review_id')
+          .in('review_id', reviewIds)
+          .in('question_id', ratingQuestions.map(q => q.id))
+          .not('answer_rating', 'is', null)
 
-      if (filters.rating !== null) {
-        reviewQuery = reviewQuery.eq('stars', filters.rating)
-      }
-
-      if (filters.dateRange) {
-        const now = new Date()
-        let startDate: Date
-
-        if (filters.dateRange === '7d') {
-          startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
-        } else if (filters.dateRange === '30d') {
-          startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
-        } else if (filters.dateRange === '90d') {
-          startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000)
-        } else if (filters.dateRange === 'custom' && filters.customDateStart) {
-          startDate = new Date(filters.customDateStart)
-        } else {
-          startDate = new Date(0)
-        }
-
-        if (filters.dateRange === 'custom' && filters.customDateEnd) {
-          const endDate = new Date(filters.customDateEnd)
-          endDate.setHours(23, 59, 59, 999)
-          reviewQuery = reviewQuery
-            .gte('created_at', startDate.toISOString())
-            .lte('created_at', endDate.toISOString())
-        } else {
-          reviewQuery = reviewQuery.gte('created_at', startDate.toISOString())
+        if (ratingAnswers && ratingAnswers.length > 0) {
+          // Create a map of review_id to rating (use first rating answer found)
+          ratingAnswers.forEach((answer) => {
+            if (answer.answer_rating && answer.review_id && !ratingAnswersMap[answer.review_id]) {
+              ratingAnswersMap[answer.review_id] = answer.answer_rating
+            }
+          })
         }
       }
+    }
 
-      const { data: reviews } = await reviewQuery
+    // Add rating from campaign questions to reviews
+    const reviewsWithRatings = filteredReviews.map(review => ({
+      ...review,
+      effectiveRating: review.stars || ratingAnswersMap[review.id] || null
+    }))
 
-      // Apply search filter
-      let filteredReviews = reviews || []
-      if (filters.search.trim()) {
-        const searchTerm = filters.search.toLowerCase()
-        filteredReviews = filteredReviews.filter((r) =>
-          r.comment?.toLowerCase().includes(searchTerm)
-        )
-      }
+    return reviewsWithRatings
+  }
 
-      // Generate CSV
-      const headers = ['Date', 'Campaign', 'Rating', 'Comment', 'Tags', 'Reviewer Name']
-      const rows = filteredReviews.map((review) => {
-        const date = review.created_at
-          ? new Date(review.created_at).toLocaleString('en-US', {
-              year: 'numeric',
-              month: '2-digit',
-              day: '2-digit',
-              hour: '2-digit',
-              minute: '2-digit',
-            })
-          : ''
-        const campaign = review.campaign?.name || 'Unknown'
-        const rating = review.stars || ''
-        const comment = (review.comment || '').replace(/"/g, '""') // Escape quotes
-        const tags = Array.isArray(review.tags) ? review.tags.join(', ') : ''
-        const reviewer = review.reviewer_name || 'Anonymous'
+  const handleExportReviews = async (format: 'csv' | 'pdf') => {
+    try {
+      const filteredReviews = await fetchFilteredReviews()
 
-        return [date, campaign, rating, comment, tags, reviewer]
-      })
+      if (format === 'csv') {
+        // Generate CSV
+        const headers = ['Date', 'Campaign', 'Rating', 'Comment', 'Tags', 'Reviewer Name']
+        const rows = filteredReviews.map((review: any) => {
+          const date = review.created_at
+            ? new Date(review.created_at).toLocaleString('en-US', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+              })
+            : ''
+          const campaign = review.campaign?.name || 'Unknown'
+          const rating = review.effectiveRating || ''
+          const comment = (review.comment || '').replace(/"/g, '""') // Escape quotes
+          const tags = Array.isArray(review.tags) ? review.tags.join(', ') : ''
+          const reviewer = review.reviewer_name || 'Anonymous'
 
-      // Escape CSV values
-      const escapeCSV = (value: string) => {
-        if (value.includes(',') || value.includes('"') || value.includes('\n')) {
-          return `"${value.replace(/"/g, '""')}"`
+          return [date, campaign, rating, comment, tags, reviewer]
+        })
+
+        // Escape CSV values
+        const escapeCSV = (value: string) => {
+          if (value.includes(',') || value.includes('"') || value.includes('\n')) {
+            return `"${value.replace(/"/g, '""')}"`
+          }
+          return value
         }
-        return value
+
+        const csvContent = [
+          headers.join(','),
+          ...rows.map((row) => row.map((cell) => escapeCSV(String(cell))).join(',')),
+        ].join('\n')
+
+        // Create blob and download
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+        const link = document.createElement('a')
+        const url = URL.createObjectURL(blob)
+        link.setAttribute('href', url)
+        link.setAttribute('download', `reviews-${new Date().toISOString().split('T')[0]}.csv`)
+        link.style.visibility = 'hidden'
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+      } else if (format === 'pdf') {
+        // Generate PDF
+        const doc = new jsPDF()
+        const pageWidth = doc.internal.pageSize.getWidth()
+        const pageHeight = doc.internal.pageSize.getHeight()
+        const margin = 15
+        const lineHeight = 7
+        let yPos = margin
+
+        // Title
+        doc.setFontSize(18)
+        doc.text('Reviews Export', margin, yPos)
+        yPos += lineHeight * 2
+
+        // Date range info
+        doc.setFontSize(10)
+        const exportDate = new Date().toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+        })
+        doc.text(`Exported on: ${exportDate}`, margin, yPos)
+        yPos += lineHeight * 1.5
+        doc.text(`Total Reviews: ${filteredReviews.length}`, margin, yPos)
+        yPos += lineHeight * 2
+
+        // Table headers
+        doc.setFontSize(11)
+        doc.setFont(undefined, 'bold')
+        const colWidths = [35, 40, 20, 60, 30]
+        const headers = ['Date', 'Campaign', 'Rating', 'Comment', 'Tags']
+        let xPos = margin
+
+        headers.forEach((header, index) => {
+          doc.text(header, xPos, yPos)
+          xPos += colWidths[index]
+        })
+
+        yPos += lineHeight
+        doc.setFont(undefined, 'normal')
+        doc.setFontSize(9)
+
+        // Table rows
+        filteredReviews.forEach((review, index) => {
+          // Check if we need a new page
+          if (yPos > pageHeight - margin - lineHeight * 3) {
+            doc.addPage()
+            yPos = margin
+          }
+
+          const date = review.created_at
+            ? new Date(review.created_at).toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric',
+              })
+            : 'N/A'
+          const campaign = (review.campaign?.name || 'Unknown').substring(0, 25)
+          const rating = review.effectiveRating ? `${review.effectiveRating}★` : 'N/A'
+          const comment = (review.comment || '').substring(0, 50)
+          const tags = Array.isArray(review.tags) ? review.tags.join(', ').substring(0, 20) : ''
+
+          xPos = margin
+          const rowData = [date, campaign, rating, comment, tags]
+
+          rowData.forEach((cell, cellIndex) => {
+            doc.text(cell, xPos, yPos)
+            xPos += colWidths[cellIndex]
+          })
+
+          yPos += lineHeight * 1.2
+
+          // Add separator line
+          if (index < filteredReviews.length - 1) {
+            doc.setDrawColor(200, 200, 200)
+            doc.line(margin, yPos - 2, pageWidth - margin, yPos - 2)
+          }
+        })
+
+        // Download PDF
+        doc.save(`reviews-${new Date().toISOString().split('T')[0]}.pdf`)
       }
 
-      const csvContent = [
-        headers.join(','),
-        ...rows.map((row) => row.map((cell) => escapeCSV(String(cell))).join(',')),
-      ].join('\n')
-
-      // Create blob and download
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-      const link = document.createElement('a')
-      const url = URL.createObjectURL(blob)
-      link.setAttribute('href', url)
-      link.setAttribute('download', `reviews-${new Date().toISOString().split('T')[0]}.csv`)
-      link.style.visibility = 'hidden'
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-    } catch (error) {
+      setShowExportDropdown(false)
+    } catch (error: any) {
       console.error('Error exporting reviews:', error)
-      alert('Failed to export reviews')
+      alert(error.message || 'Failed to export reviews')
     }
   }
 
@@ -495,13 +625,40 @@ export default function DashboardPage() {
             <FaPlus />
             Quick Create
           </button>
-          <button
-            onClick={handleExportReviews}
-            className="px-3 py-1.5 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-2 text-sm"
-          >
-            <FaDownload />
-            Export Reviews
-          </button>
+          <div className="relative">
+            <button
+              onClick={() => setShowExportDropdown(!showExportDropdown)}
+              className="px-3 py-1.5 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-2 text-sm"
+            >
+              <FaDownload />
+              Export Reviews
+              <FaChevronDown className="w-3 h-3" />
+            </button>
+            {showExportDropdown && (
+              <>
+                <div
+                  className="fixed inset-0 z-10"
+                  onClick={() => setShowExportDropdown(false)}
+                />
+                <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-20">
+                  <button
+                    onClick={() => handleExportReviews('csv')}
+                    className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 rounded-t-lg"
+                  >
+                    <FaFileCsv />
+                    Export as CSV
+                  </button>
+                  <button
+                    onClick={() => handleExportReviews('pdf')}
+                    className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 rounded-b-lg"
+                  >
+                    <FaFilePdf />
+                    Export as PDF
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
           <Link
             href="/dashboard/events"
             className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 text-sm"
