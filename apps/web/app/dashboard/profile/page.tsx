@@ -102,7 +102,7 @@ export default function ProfilePage() {
     <div>
       <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-6">Profile</h1>
       
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
         {profile.profile_image_url && (
           <div className="mb-6">
             <img

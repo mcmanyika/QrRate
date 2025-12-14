@@ -1,16 +1,19 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import Image from 'next/image'
+import { FaQrcode, FaStar, FaComments, FaArrowRight, FaArrowLeft } from 'react-icons/fa'
 
 export default function EventPublicPage() {
   const params = useParams()
+  const router = useRouter()
   const slug = params.slug as string
   const [event, setEvent] = useState<any>(null)
-  const [businesses, setBusinesses] = useState<any[]>([])
+  const [qrCode, setQrCode] = useState<any>(null)
+  const [stats, setStats] = useState<any>(null)
+  const [recentReviews, setRecentReviews] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -18,7 +21,7 @@ export default function EventPublicPage() {
       try {
         const supabase = createClient()
         
-        // Fetch event
+        // Fetch campaign by slug
         const { data: eventData, error: eventError } = await supabase
           .from('event')
           .select('*')
@@ -27,55 +30,55 @@ export default function EventPublicPage() {
           .single()
 
         if (eventError || !eventData) {
-          console.error('Event not found')
+          console.error('Campaign not found')
           setLoading(false)
           return
         }
 
         setEvent(eventData)
 
-        // Fetch businesses in event with stats
-        const { data: eventBusinesses } = await supabase
-          .from('event_business')
-          .select('*, business:business_id(*)')
-          .eq('event_id', eventData.id)
+        // Fetch QR code for this campaign
+        const { data: qrCodeData } = await supabase
+          .from('qr_code')
+          .select('*')
+          .eq('campaign_id', eventData.id)
+          .eq('is_active', true)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle()
 
-        const businessList = eventBusinesses?.map(eb => eb.business).filter(Boolean) || []
-        
-        // Fetch stats for each business
-        const businessIds = businessList.map(b => b.id)
-        if (businessIds.length > 0) {
-          const { data: statsData } = await supabase
-            .from('business_stats')
-            .select('*')
-            .in('business_id', businessIds)
+        setQrCode(qrCodeData)
 
-          // Merge stats with businesses
-          const businessesWithStats = businessList.map(business => {
-            const stats = statsData?.find(s => s.business_id === business.id)
-            return {
-              ...business,
-              stats: stats || {
-                total_reviews: 0,
-                avg_rating: 0,
-              }
-            }
-          })
+        // Fetch campaign reviews for stats
+        const { data: reviews } = await supabase
+          .from('review')
+          .select('stars, created_at, comment, tags, reviewer_name')
+          .eq('campaign_id', eventData.id)
+          .eq('is_public', true)
 
-          // Sort by rating and review count
-          businessesWithStats.sort((a, b) => {
-            if (b.stats.avg_rating !== a.stats.avg_rating) {
-              return b.stats.avg_rating - a.stats.avg_rating
-            }
-            return b.stats.total_reviews - a.stats.total_reviews
-          })
+        const totalReviews = reviews?.length || 0
+        const reviewsWithStars = reviews?.filter(r => r.stars) || []
+        const avgRating = reviewsWithStars.length > 0
+          ? reviewsWithStars.reduce((sum, r) => sum + (r.stars || 0), 0) / reviewsWithStars.length
+          : 0
 
-          setBusinesses(businessesWithStats)
-        } else {
-          setBusinesses([])
-        }
+        setStats({
+          total_reviews: totalReviews,
+          avg_rating: avgRating,
+        })
+
+        // Fetch recent reviews with full details
+        const { data: recentReviewsData } = await supabase
+          .from('review')
+          .select('*')
+          .eq('campaign_id', eventData.id)
+          .eq('is_public', true)
+          .order('created_at', { ascending: false })
+          .limit(10)
+
+        setRecentReviews(recentReviewsData || [])
       } catch (error) {
-        console.error('Error loading event:', error)
+        console.error('Error loading campaign:', error)
       } finally {
         setLoading(false)
       }
@@ -101,140 +104,187 @@ export default function EventPublicPage() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Event Not Found</h1>
-          <p className="text-gray-600">This event does not exist or has been deactivated.</p>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Campaign Not Found</h1>
+          <p className="text-gray-600">This campaign does not exist or has been deactivated.</p>
         </div>
       </div>
     )
   }
 
+  const reviewUrl = qrCode ? `/review/${qrCode.code}` : null
+
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-6xl mx-auto px-4">
-        {/* Event Header */}
-        <div className="bg-white rounded-lg shadow-lg p-8 mb-6">
-          <h1 className="text-4xl font-bold mb-2">{event.name}</h1>
-          {event.description && (
-            <p className="text-gray-600 mb-4">{event.description}</p>
-          )}
-          <div className="flex flex-wrap gap-4 text-sm text-gray-600">
-            {event.location && (
-              <div>
-                <span className="font-medium">📍 Location:</span> {event.location}
-              </div>
-            )}
-            {event.start_date && (
-              <div>
-                <span className="font-medium">📅 Date:</span>{' '}
-                {new Date(event.start_date).toLocaleDateString()}
-                {event.end_date && ` - ${new Date(event.end_date).toLocaleDateString()}`}
-              </div>
-            )}
+        {/* Back Button */}
+        <button
+          onClick={() => router.back()}
+          className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4 transition-colors"
+        >
+          <FaArrowLeft className="w-4 h-4" />
+          <span>Back</span>
+        </button>
+
+        {/* Campaign Header */}
+        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <h1 className="text-3xl font-bold mb-2 text-gray-900">{event.name}</h1>
+              {event.description && (
+                <p className="text-gray-600 mb-4">{event.description}</p>
+              )}
+              {event.campaign_type && (
+                <span className="inline-block px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium capitalize">
+                  {event.campaign_type}
+                </span>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* Top Vendors */}
-        {businesses.length > 0 && (
-          <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
-            <h2 className="text-2xl font-bold mb-4">Top Rated Vendors</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {businesses.slice(0, 6).map((business, index) => (
-                <Link
-                  key={business.id}
-                  href={`/business/${business.slug}`}
-                  className="bg-gray-50 rounded-lg p-4 hover:bg-gray-100 transition-colors"
-                >
-                  <div className="flex items-center gap-3 mb-2">
-                    {index < 3 && (
-                      <span className="text-2xl">
-                        {index === 0 ? '🥇' : index === 1 ? '🥈' : '🥉'}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+          {/* Stats Card */}
+          <div className="bg-white rounded-lg shadow-sm p-6">
+            <h2 className="text-lg font-bold text-gray-900 mb-4">Campaign Stats</h2>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <FaComments className="text-gray-600" />
+                  <span className="text-gray-700">Total Reviews</span>
+                </div>
+                <span className="text-2xl font-bold text-gray-900">{stats?.total_reviews || 0}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <FaStar className="text-yellow-500" />
+                  <span className="text-gray-700">Average Rating</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-2xl font-bold text-gray-900">
+                    {stats?.avg_rating ? stats.avg_rating.toFixed(1) : '0.0'}
+                  </span>
+                  <div className="flex">
+                    {[1, 2, 3, 4, 5].map((n) => (
+                      <span
+                        key={n}
+                        className={stats?.avg_rating && stats.avg_rating >= n ? 'text-yellow-400' : 'text-gray-300'}
+                      >
+                        ★
                       </span>
-                    )}
-                    {business.logo_url && (
-                      <Image
-                        src={business.logo_url}
-                        alt={business.name}
-                        width={40}
-                        height={40}
-                        className="rounded-full object-cover"
-                      />
-                    )}
-                    <div className="flex-1">
-                      <p className="font-semibold text-gray-900">{business.name}</p>
-                      {business.category && (
-                        <p className="text-xs text-gray-500 capitalize">{business.category}</p>
-                      )}
-                    </div>
+                    ))}
                   </div>
-                  <div className="flex items-center gap-2">
-                    <div className="flex">
-                      {[1, 2, 3, 4, 5].map((n) => (
-                        <span
-                          key={n}
-                          className={business.stats.avg_rating >= n ? 'text-yellow-400' : 'text-gray-300'}
-                        >
-                          ★
-                        </span>
-                      ))}
-                    </div>
-                    <span className="text-sm text-gray-600">
-                      {business.stats.avg_rating.toFixed(1)} ({business.stats.total_reviews} reviews)
-                    </span>
-                  </div>
-                </Link>
-              ))}
+                </div>
+              </div>
             </div>
           </div>
-        )}
 
-        {/* All Vendors */}
-        <div className="bg-white rounded-lg shadow-lg p-6">
-          <h2 className="text-2xl font-bold mb-4">All Vendors</h2>
-          {businesses.length === 0 ? (
+          {/* QR Code Card */}
+          {qrCode && (
+            <div className="bg-white rounded-lg shadow-sm p-6">
+              <h2 className="text-lg font-bold text-gray-900 mb-4">Scan to Review</h2>
+              <div className="flex flex-col items-center">
+                <div className="bg-gray-50 p-4 rounded-lg mb-4">
+                  <div dangerouslySetInnerHTML={{ __html: qrCode.qr_svg || '' }} />
+                </div>
+                {reviewUrl && (
+                  <Link
+                    href={reviewUrl}
+                    className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+                  >
+                    <FaQrcode />
+                    Leave a Review
+                  </Link>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Call to Action */}
+          {!qrCode && (
+            <div className="bg-white rounded-lg shadow-sm p-6">
+              <h2 className="text-lg font-bold text-gray-900 mb-4">Get Started</h2>
+              <p className="text-gray-600 mb-4 text-sm">
+                QR code not generated yet. Contact the campaign organizer to get the QR code.
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Recent Reviews */}
+        <div className="bg-white rounded-lg shadow-sm p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-2xl font-bold text-gray-900">Recent Reviews</h2>
+            {reviewUrl && (
+              <Link
+                href={reviewUrl}
+                className="text-blue-600 hover:text-blue-800 flex items-center gap-2 text-sm font-medium"
+              >
+                Leave a Review
+                <FaArrowRight className="w-3 h-3" />
+              </Link>
+            )}
+          </div>
+          {recentReviews.length === 0 ? (
             <div className="text-center py-12">
-              <p className="text-gray-500">No vendors added to this event yet.</p>
+              <FaComments className="w-16 h-16 mx-auto text-gray-300 mb-4" />
+              <p className="text-gray-500 mb-4">No reviews yet.</p>
+              {reviewUrl && (
+                <Link
+                  href={reviewUrl}
+                  className="inline-block px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Be the first to review
+                </Link>
+              )}
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {businesses.map((business) => (
-                <Link
-                  key={business.id}
-                  href={`/business/${business.slug}`}
-                  className="border border-gray-200 rounded-lg p-4 hover:border-blue-500 hover:shadow-md transition-all"
+            <div className="space-y-4">
+              {recentReviews.map((review) => (
+                <div
+                  key={review.id}
+                  className="border-b border-gray-200 pb-4 last:border-0 last:pb-0"
                 >
-                  <div className="flex items-center gap-3 mb-2">
-                    {business.logo_url && (
-                      <Image
-                        src={business.logo_url}
-                        alt={business.name}
-                        width={50}
-                        height={50}
-                        className="rounded-full object-cover"
-                      />
-                    )}
-                    <div className="flex-1">
-                      <p className="font-semibold text-gray-900">{business.name}</p>
-                      {business.category && (
-                        <p className="text-xs text-gray-500 capitalize">{business.category}</p>
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="flex items-center gap-3">
+                      {review.stars && (
+                        <div className="flex">
+                          {[1, 2, 3, 4, 5].map((n) => (
+                            <span
+                              key={n}
+                              className={review.stars >= n ? 'text-yellow-400' : 'text-gray-300'}
+                            >
+                              ★
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      {review.reviewer_name && (
+                        <span className="font-medium text-gray-900">{review.reviewer_name}</span>
+                      )}
+                      {!review.reviewer_name && (
+                        <span className="text-gray-500 text-sm">Anonymous</span>
                       )}
                     </div>
+                    <span className="text-sm text-gray-500">
+                      {new Date(review.created_at).toLocaleDateString()}
+                    </span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <div className="flex">
-                      {[1, 2, 3, 4, 5].map((n) => (
+                  {review.comment && (
+                    <p className="text-gray-700 mb-2">{review.comment}</p>
+                  )}
+                  {review.tags && review.tags.length > 0 && (
+                    <div className="flex gap-1 flex-wrap">
+                      {review.tags.map((tag: string, i: number) => (
                         <span
-                          key={n}
-                          className={business.stats.avg_rating >= n ? 'text-yellow-400' : 'text-gray-300'}
+                          key={i}
+                          className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs"
                         >
-                          ★
+                          {tag}
                         </span>
                       ))}
                     </div>
-                    <span className="text-sm text-gray-600">
-                      {business.stats.avg_rating.toFixed(1)} ({business.stats.total_reviews})
-                    </span>
-                  </div>
-                </Link>
+                  )}
+                </div>
               ))}
             </div>
           )}
@@ -243,4 +293,3 @@ export default function EventPublicPage() {
     </div>
   )
 }
-

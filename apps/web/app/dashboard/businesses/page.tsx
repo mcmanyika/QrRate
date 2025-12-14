@@ -131,7 +131,7 @@ export default function BusinessesPage() {
           {businesses.map((business) => (
             <div
               key={business.id}
-              className="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-shadow"
+              className="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden hover:shadow transition-shadow"
             >
               {business.logo_url && (
                 <div className="h-48 bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
@@ -182,7 +182,6 @@ export default function BusinessesPage() {
                   </Link>
                   <Link
                     href={`/business/${business.slug}`}
-                    target="_blank"
                     className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
                   >
                     View Public
