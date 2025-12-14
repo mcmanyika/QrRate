@@ -326,10 +326,10 @@ export default function EventDashboardPage() {
         const qrSize = Math.min(pageWidth - margin * 2, 120)
         const qrX = (pageWidth - qrSize) / 2
         
-        // Add "Send us quick feedback" text above the QR code
+        // Add "SEND US QUICK FEEDBACK" text above the QR code
         doc.setFontSize(20)
         doc.setFont(undefined, 'bold')
-        const feedbackText = 'Send us quick feedback'
+        const feedbackText = 'SEND US QUICK FEEDBACK'
         const feedbackTextWidth = doc.getTextWidth(feedbackText)
         const feedbackTextX = (pageWidth - feedbackTextWidth) / 2
         const feedbackTextY = topMargin - 10

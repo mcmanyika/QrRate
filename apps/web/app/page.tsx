@@ -9,6 +9,10 @@ const ANDROID_DOWNLOAD_URL = 'https://expo.dev/artifacts/eas/gui5qGWGoSptoNxBcgJ
 
 export default function Home() {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [email, setEmail] = useState('')
+  const [emailSubmitting, setEmailSubmitting] = useState(false)
+  const [emailSuccess, setEmailSuccess] = useState(false)
+  const [emailError, setEmailError] = useState<string | null>(null)
 
   // Check if user is logged in
   useEffect(() => {
@@ -78,7 +82,7 @@ export default function Home() {
     <main className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 relative overflow-hidden transition-colors duration-200">
       {/* Animated background elements */}
       {/* Hero Section */}
-      <section className="container mx-auto px-4 py-8 md:py-12 relative z-10">
+      <section className="container mx-auto px-4 py-10 md:py-14 relative z-10">
         <div className="text-center max-w-4xl mx-auto animate-fade-in">
           <div className="text-6xl md:text-8xl mb-2 animate-float inline-block text-gray-700 dark:text-gray-300">
             <FaQrcode className="w-24 h-24 md:w-32 md:h-32 mx-auto" />
@@ -188,7 +192,7 @@ export default function Home() {
       </section>
 
       {/* How It Works Section */}
-      <section className="container mx-auto px-4 py-10 md:py-14 relative z-10 bg-gradient-to-b from-white to-gray-50/50 dark:from-gray-800 dark:to-gray-900">
+      <section className="container mx-auto px-4 pt-10 md:pt-14 pb-16 md:pb-20 relative z-10 bg-gradient-to-b from-white to-gray-50/50 dark:from-gray-800 dark:to-gray-900">
         <h2 className="text-3xl md:text-4xl font-extrabold text-center mb-1 gradient-text dark:text-gray-100 tracking-tight">
           How It Works
         </h2>
@@ -237,6 +241,85 @@ export default function Home() {
                 Help others support and make informed decisions.
               </p>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Email Subscription Section */}
+      <section className="container mx-auto px-4 py-10 md:py-14 relative z-10">
+        <div className="max-w-2xl mx-auto">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border border-gray-200 dark:border-gray-700">
+            <h3 className="text-2xl font-bold text-center text-gray-900 dark:text-gray-100 mb-2">
+              Stay Updated
+            </h3>
+            <p className="text-center text-gray-600 dark:text-gray-400 mb-6 text-sm">
+              Subscribe to get the latest updates, tips, and exclusive offers
+            </p>
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault()
+                if (!email.trim()) {
+                  setEmailError('Please enter a valid email address')
+                  return
+                }
+
+                setEmailSubmitting(true)
+                setEmailError(null)
+
+                try {
+                  // TODO: Replace with your email subscription API endpoint
+                  const response = await fetch('/api/subscribe', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ email: email.trim() }),
+                  })
+
+                  if (!response.ok) {
+                    throw new Error('Failed to subscribe')
+                  }
+
+                  setEmailSuccess(true)
+                  setEmail('')
+                  setTimeout(() => setEmailSuccess(false), 5000)
+                } catch (error) {
+                  console.error('Subscription error:', error)
+                  setEmailError('Something went wrong. Please try again.')
+                } finally {
+                  setEmailSubmitting(false)
+                }
+              }}
+              className="flex flex-col sm:flex-row gap-2"
+            >
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => {
+                  setEmail(e.target.value)
+                  setEmailError(null)
+                }}
+                placeholder="Enter your email address"
+                className="flex-1 px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                required
+                disabled={emailSubmitting}
+              />
+              <button
+                type="submit"
+                disabled={emailSubmitting || emailSuccess}
+                className="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium whitespace-nowrap"
+              >
+                {emailSubmitting ? 'Subscribing...' : emailSuccess ? 'Subscribed!' : 'Subscribe'}
+              </button>
+            </form>
+            {emailError && (
+              <p className="mt-2 text-sm text-red-600 dark:text-red-400 text-center">{emailError}</p>
+            )}
+            {emailSuccess && (
+              <p className="mt-2 text-sm text-green-600 dark:text-green-400 text-center">
+                Thank you for subscribing! Check your email for confirmation.
+              </p>
+            )}
           </div>
         </div>
       </section>
