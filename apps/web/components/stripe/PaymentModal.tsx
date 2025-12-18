@@ -130,7 +130,7 @@ export default function PaymentModal({ isOpen, onClose, amount, planName, onSucc
   if (!isOpen) return null
 
   const options = {
-    clientSecret,
+    clientSecret: clientSecret || undefined,
     appearance: {
       theme: 'stripe' as const,
     },

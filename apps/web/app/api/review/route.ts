@@ -175,17 +175,43 @@ export async function POST(request: NextRequest) {
 
     // Update QR code scan count if QR code was provided
     if (qr_code_id) {
-      await supabase.rpc('increment', {
-        table_name: 'qr_code',
-        column_name: 'scan_count',
-        row_id: qr_code_id,
-      }).catch(() => {
-        // Fallback if RPC doesn't exist - just update directly
-        supabase
+      try {
+        const { error: rpcError } = await supabase.rpc('increment', {
+          table_name: 'qr_code',
+          column_name: 'scan_count',
+          row_id: qr_code_id,
+        })
+        
+        if (rpcError) {
+          // Fallback if RPC doesn't exist - fetch current count and increment
+          const { data: qrCodeData } = await supabase
+            .from('qr_code')
+            .select('scan_count')
+            .eq('id', qr_code_id)
+            .single()
+          
+          if (qrCodeData) {
+            await supabase
+              .from('qr_code')
+              .update({ scan_count: (qrCodeData.scan_count || 0) + 1 })
+              .eq('id', qr_code_id)
+          }
+        }
+      } catch (error) {
+        // Fallback if RPC doesn't exist - fetch current count and increment
+        const { data: qrCodeData } = await supabase
           .from('qr_code')
-          .update({ scan_count: supabase.raw('scan_count + 1') })
+          .select('scan_count')
           .eq('id', qr_code_id)
-      })
+          .single()
+        
+        if (qrCodeData) {
+          await supabase
+            .from('qr_code')
+            .update({ scan_count: (qrCodeData.scan_count || 0) + 1 })
+            .eq('id', qr_code_id)
+        }
+      }
     }
 
     return NextResponse.json({

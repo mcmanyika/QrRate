@@ -328,7 +328,7 @@ export default function EventDashboardPage() {
         
         // Add "SEND US QUICK FEEDBACK" text above the QR code
         doc.setFontSize(20)
-        doc.setFont(undefined, 'bold')
+        doc.setFont('helvetica', 'bold')
         const feedbackText = 'SEND US QUICK FEEDBACK'
         const feedbackTextWidth = doc.getTextWidth(feedbackText)
         const feedbackTextX = (pageWidth - feedbackTextWidth) / 2
@@ -341,7 +341,7 @@ export default function EventDashboardPage() {
         doc.addImage(imgData, 'PNG', qrX, qrY, qrSize, qrSize)
         
         // Add "SCAN ME" text in bold under the QR code
-        doc.setFont(undefined, 'bold')
+        doc.setFont('helvetica', 'bold')
         doc.setFontSize(65)
         const textY = qrY + qrSize + 15
         const textWidth = doc.getTextWidth('SCAN ME')

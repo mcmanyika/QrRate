@@ -275,7 +275,7 @@ export default function ReportsPage() {
       const tagCounts: Record<string, number> = {}
       reviews?.forEach(review => {
         if (review.tags && Array.isArray(review.tags)) {
-          review.tags.forEach(tag => {
+          review.tags.forEach((tag: string) => {
             tagCounts[tag] = (tagCounts[tag] || 0) + 1
           })
         }

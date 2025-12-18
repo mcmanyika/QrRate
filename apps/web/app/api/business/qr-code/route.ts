@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate unique short code
-    let code: string
+    let code: string = ''
     let attempts = 0
     let isUnique = false
 
@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    if (!isUnique) {
+    if (!isUnique || !code) {
       return NextResponse.json(
         { error: 'Failed to generate unique code. Please try again.' },
         { status: 500 }

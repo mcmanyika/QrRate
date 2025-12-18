@@ -239,7 +239,7 @@ export default function DashboardPage() {
 
         // Table headers
         doc.setFontSize(11)
-        doc.setFont(undefined, 'bold')
+        doc.setFont('helvetica', 'bold')
         const colWidths = [35, 40, 20, 60, 30]
         const headers = ['Date', 'Campaign', 'Rating', 'Comment', 'Tags']
         let xPos = margin
@@ -250,7 +250,7 @@ export default function DashboardPage() {
         })
 
         yPos += lineHeight
-        doc.setFont(undefined, 'normal')
+        doc.setFont('helvetica', 'normal')
         doc.setFontSize(9)
 
         // Table rows
@@ -463,7 +463,9 @@ export default function DashboardPage() {
         if (ratingDistribution.length === 0 || ratingDistribution.every(r => r.count === 0)) {
           // Reset counts for star ratings
           const starRatingCounts: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
-          filteredReviews.forEach((r) => {
+          const reviewsWithStars = filteredReviews.filter((r) => r.stars && r.stars >= 1 && r.stars <= 5)
+          
+          reviewsWithStars.forEach((r) => {
             if (r.stars && r.stars >= 1 && r.stars <= 5) {
               starRatingCounts[r.stars]++
             }
