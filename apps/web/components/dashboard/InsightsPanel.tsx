@@ -1,6 +1,6 @@
 'use client'
 
-import { FaExclamationTriangle, FaLightbulb, FaCheckCircle } from 'react-icons/fa'
+import { FaExclamationTriangle, FaLightbulb, FaCheckCircle, FaTimes } from 'react-icons/fa'
 
 interface Insight {
   type: 'highlight' | 'alert' | 'recommendation'
@@ -11,10 +11,12 @@ interface Insight {
 
 interface InsightsPanelProps {
   insights: Insight[]
+  isOpen: boolean
+  onClose: () => void
 }
 
-export default function InsightsPanel({ insights }: InsightsPanelProps) {
-  if (!insights || insights.length === 0) {
+export default function InsightsPanel({ insights, isOpen, onClose }: InsightsPanelProps) {
+  if (!isOpen || !insights || insights.length === 0) {
     return null
   }
 
@@ -70,32 +72,56 @@ export default function InsightsPanel({ insights }: InsightsPanelProps) {
   })
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-3">
-      <h2 className="text-base font-bold text-gray-900 dark:text-gray-100 mb-3">Insights & Recommendations</h2>
-      <div className="space-y-2">
-        {sortedInsights.map((insight, index) => {
-          const colors = getColorClasses(insight.type, insight.priority)
-          return (
-            <div
-              key={index}
-              className={`${colors.bg} ${colors.border} border rounded-lg p-2.5 flex gap-2`}
+    <>
+      {/* Backdrop */}
+      <div
+        className="fixed inset-0 bg-black bg-opacity-50 z-40"
+        onClick={onClose}
+      />
+      
+      {/* Modal */}
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col">
+          {/* Header */}
+          <div className="flex items-center justify-between p-3 border-b border-gray-200 dark:border-gray-700">
+            <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">Insights & Recommendations</h2>
+            <button
+              onClick={onClose}
+              className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
             >
-              <div className={`${colors.icon} flex-shrink-0 mt-0.5`}>
-                {getIcon(insight.type)}
-              </div>
-              <div className="flex-1 min-w-0">
-                <h3 className={`${colors.title} font-semibold text-sm mb-0.5`}>
-                  {insight.title}
-                </h3>
-                <p className="text-xs text-gray-700 dark:text-gray-300">
-                  {insight.message}
-                </p>
-              </div>
+              <FaTimes className="w-4 h-4" />
+            </button>
+          </div>
+          
+          {/* Content */}
+          <div className="overflow-y-auto p-3">
+            <div className="space-y-2">
+              {sortedInsights.map((insight, index) => {
+                const colors = getColorClasses(insight.type, insight.priority)
+                return (
+                  <div
+                    key={index}
+                    className={`${colors.bg} ${colors.border} border rounded-lg p-2.5 flex gap-2`}
+                  >
+                    <div className={`${colors.icon} flex-shrink-0 mt-0.5`}>
+                      {getIcon(insight.type)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className={`${colors.title} font-semibold text-sm mb-0.5`}>
+                        {insight.title}
+                      </h3>
+                      <p className="text-xs text-gray-700 dark:text-gray-300">
+                        {insight.message}
+                      </p>
+                    </div>
+                  </div>
+                )
+              })}
             </div>
-          )
-        })}
+          </div>
+        </div>
       </div>
-    </div>
+    </>
   )
 }
 

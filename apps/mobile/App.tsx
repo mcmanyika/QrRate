@@ -2287,7 +2287,7 @@ function AppContent() {
             <View style={styles.iconContainer}>
               <FontAwesome name="qrcode" size={80} color="#2563eb" />
             </View>
-            <Text style={styles.header}>QrRate</Text>
+            <Text style={styles.header}>FeedbackQR</Text>
             {scanError ? (
               <View style={styles.errorContainer}>
                 <Text style={styles.errorText}>{scanError}</Text>
@@ -2558,7 +2558,7 @@ function AppContent() {
       <ThemeToggleButton />
       <View style={styles.headerContainer}>
         <View style={styles.ratingHeader}>
-          <Text style={styles.ratingTitle}>{businessName || 'QrRate'}</Text>
+          <Text style={styles.ratingTitle}>{businessName || 'FeedbackQR'}</Text>
           <Text style={styles.ratingSubtitle}>Share your experience</Text>
         </View>
       </View>

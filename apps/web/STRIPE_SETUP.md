@@ -1,6 +1,6 @@
 # Stripe Integration Setup
 
-This guide will help you set up Stripe payment processing for the QrRate pricing page.
+This guide will help you set up Stripe payment processing for the FeedbackQR pricing page.
 
 ## Prerequisites
 

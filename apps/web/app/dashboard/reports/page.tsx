@@ -10,7 +10,7 @@ import TimeSeriesAreaChart from '@/components/dashboard/TimeSeriesAreaChart'
 import RatingBreakdownChart from '@/components/dashboard/RatingBreakdownChart'
 import EngagementMetricsChart from '@/components/dashboard/EngagementMetricsChart'
 import InsightsPanel from '@/components/dashboard/InsightsPanel'
-import { FaDownload, FaFilePdf, FaFileCsv } from 'react-icons/fa'
+import { FaDownload, FaFilePdf, FaFileCsv, FaLightbulb } from 'react-icons/fa'
 import jsPDF from 'jspdf'
 
 interface ReportData {
@@ -69,6 +69,7 @@ export default function ReportsPage() {
   const [reportData, setReportData] = useState<ReportData | null>(null)
   const [loading, setLoading] = useState(true)
   const [campaigns, setCampaigns] = useState<Array<{ id: string; name: string }>>([])
+  const [showInsightsModal, setShowInsightsModal] = useState(false)
   const [filters, setFilters] = useState<Filters>({
     campaigns: [],
     dateRange: '30d',
@@ -529,6 +530,15 @@ export default function ReportsPage() {
           <p className="text-gray-600 dark:text-gray-400 text-xs">Comprehensive insights into your campaigns and reviews</p>
         </div>
         <div className="flex gap-2">
+          {reportData.insights.length > 0 && (
+            <button
+              onClick={() => setShowInsightsModal(true)}
+              className="px-2 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-1.5 text-xs"
+            >
+              <FaLightbulb />
+              View Insights
+            </button>
+          )}
           <button
             onClick={handleExportPDF}
             className="px-2 py-1 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-1.5 text-xs"
@@ -617,13 +627,6 @@ export default function ReportsPage() {
         </div>
       </div>
 
-      {/* Insights Panel */}
-      {reportData.insights.length > 0 && (
-        <div className="mb-3">
-          <InsightsPanel insights={reportData.insights} />
-        </div>
-      )}
-
       {/* Charts Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-3">
         {/* Campaign Comparison */}
@@ -673,6 +676,15 @@ export default function ReportsPage() {
           <EngagementMetricsChart data={reportData.engagementMetrics} />
         </div>
       </div>
+
+      {/* Insights Modal */}
+      {reportData.insights.length > 0 && (
+        <InsightsPanel
+          insights={reportData.insights}
+          isOpen={showInsightsModal}
+          onClose={() => setShowInsightsModal(false)}
+        />
+      )}
     </div>
   )
 }

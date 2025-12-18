@@ -78,7 +78,7 @@ export default function SplashScreen({ onFinish }: SplashScreenProps) {
         </View>
 
         {/* App Name */}
-        <Text style={dynamicStyles.appName}>QrRate</Text>
+        <Text style={dynamicStyles.appName}>FeedbackQR</Text>
 
         {/* Tagline */}
         <Text style={dynamicStyles.tagline}>Review businesses instantly</Text>

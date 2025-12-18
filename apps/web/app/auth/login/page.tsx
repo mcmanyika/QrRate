@@ -12,7 +12,7 @@ export default function LoginPage() {
             <FaQrcode className="w-24 h-24 md:w-28 md:h-28 mx-auto" />
           </div>
           <h1 className="text-4xl md:text-5xl font-extrabold mb-1 bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 dark:from-gray-100 dark:via-gray-200 dark:to-gray-100 bg-clip-text text-transparent tracking-tight group-hover:opacity-80 transition-opacity">
-            QrRate
+            FeedbackQR
           </h1>
           <p className="text-sm text-gray-500 dark:text-gray-500">
             Sign in to your account to continue

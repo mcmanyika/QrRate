@@ -88,7 +88,7 @@ export default function Home() {
             <FaQrcode className="w-24 h-24 md:w-32 md:h-32 mx-auto" />
           </div>
           <h1 className="text-4xl md:text-6xl font-extrabold mb-2 gradient-text animate-slide-up tracking-tight">
-            QrRate
+            FeedbackQR
           </h1>
           <p className="text-xl md:text-2xl font-semibold text-gray-800 dark:text-gray-200 mb-2 animate-slide-up tracking-tight" style={{ animationDelay: '0.2s' }}>
             Review businesses instantly
@@ -374,10 +374,10 @@ export default function Home() {
             <FaStore className="w-12 h-12 mx-auto" />
           </div>
           <p className="text-2xl font-bold mb-1 bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-400 tracking-tight">
-            QrRate
+            FeedbackQR
           </p>
           <p className="text-gray-400 text-sm mb-3">
-            © {new Date().getFullYear()} QrRate. All rights reserved.
+            © {new Date().getFullYear()} FeedbackQR. All rights reserved.
           </p>
           <div className="mt-2">
             <a

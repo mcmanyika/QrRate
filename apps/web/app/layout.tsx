@@ -3,7 +3,7 @@ import './globals.css'
 import { ThemeProvider } from '@/contexts/ThemeContext'
 
 export const metadata: Metadata = {
-  title: 'QrRate - Universal QR-Based Review Platform',
+  title: 'FeedbackQR - Universal QR-Based Review Platform',
   description: 'Scan QR codes to instantly review any business. Rate businesses with stars, tags, and photos.',
 }
 

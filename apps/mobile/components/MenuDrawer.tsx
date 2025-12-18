@@ -185,7 +185,7 @@ export default function MenuDrawer({
 
           {/* App Info */}
           <View style={dynamicStyles.footer}>
-            <Text style={dynamicStyles.footerText}>QrRate v0.1.0</Text>
+            <Text style={dynamicStyles.footerText}>FeedbackQR v0.1.0</Text>
             {user && (
               <Text style={dynamicStyles.footerEmail}>{user.email}</Text>
             )}
