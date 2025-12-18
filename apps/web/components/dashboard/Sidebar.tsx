@@ -5,11 +5,12 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
-import { FaChartBar, FaCalendarAlt, FaUser, FaSignOutAlt, FaDollarSign } from 'react-icons/fa'
+import { FaChartBar, FaCalendarAlt, FaUser, FaSignOutAlt, FaDollarSign, FaChartLine } from 'react-icons/fa'
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: FaChartBar },
   { name: 'Campaigns', href: '/dashboard/events', icon: FaCalendarAlt },
+  { name: 'Reports', href: '/dashboard/reports', icon: FaChartLine },
   { name: 'Pricing', href: '/pricing', icon: FaDollarSign },
   { name: 'Profile', href: '/dashboard/profile', icon: FaUser },
 ]

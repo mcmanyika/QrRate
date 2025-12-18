@@ -41,13 +41,13 @@ export default function ReviewFilters({ filters, campaigns, onFiltersChange }: R
   }
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 mb-4">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <FaFilter className="text-gray-600 dark:text-gray-400" />
-          <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">Filters</h3>
+    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-3 mb-3">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-1.5">
+          <FaFilter className="text-gray-600 dark:text-gray-400 w-3.5 h-3.5" />
+          <h3 className="text-base font-bold text-gray-900 dark:text-gray-100">Filters</h3>
           {activeFilterCount > 0 && (
-            <span className="px-2 py-0.5 bg-blue-600 text-white text-xs font-semibold rounded-full">
+            <span className="px-1.5 py-0.5 bg-blue-600 text-white text-xs font-semibold rounded-full">
               {activeFilterCount}
             </span>
           )}
@@ -55,24 +55,24 @@ export default function ReviewFilters({ filters, campaigns, onFiltersChange }: R
         {activeFilterCount > 0 && (
           <button
             onClick={clearFilters}
-            className="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 flex items-center gap-1"
+            className="text-xs text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 flex items-center gap-1"
           >
-            <FaTimes className="w-3 h-3" />
+            <FaTimes className="w-2.5 h-2.5" />
             Clear All
           </button>
         )}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
         {/* Rating Filter */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
             Rating
           </label>
           <select
             value={filters.rating !== null ? filters.rating : ''}
             onChange={(e) => handleFilterChange('rating', e.target.value === '' ? null : parseInt(e.target.value))}
-            className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100 text-sm"
+            className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100 text-xs"
           >
             <option value="">All Ratings</option>
             <option value="5">5 Stars</option>
@@ -85,13 +85,13 @@ export default function ReviewFilters({ filters, campaigns, onFiltersChange }: R
 
         {/* Campaign Filter */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
             Campaign
           </label>
           <select
             value={filters.campaign || ''}
             onChange={(e) => handleFilterChange('campaign', e.target.value === '' ? null : e.target.value)}
-            className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100 text-sm"
+            className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100 text-xs"
           >
             <option value="">All Campaigns</option>
             {campaigns.map((campaign) => (
@@ -104,7 +104,7 @@ export default function ReviewFilters({ filters, campaigns, onFiltersChange }: R
 
         {/* Date Range Filter */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
             Date Range
           </label>
           <select
@@ -117,7 +117,7 @@ export default function ReviewFilters({ filters, campaigns, onFiltersChange }: R
                 handleFilterChange('customDateEnd', null)
               }
             }}
-            className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100 text-sm"
+            className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100 text-xs"
           >
             <option value="">All Time</option>
             <option value="7d">Last 7 Days</option>
@@ -129,7 +129,7 @@ export default function ReviewFilters({ filters, campaigns, onFiltersChange }: R
 
         {/* Search Filter */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
             Search
           </label>
           <input
@@ -137,34 +137,34 @@ export default function ReviewFilters({ filters, campaigns, onFiltersChange }: R
             value={filters.search}
             onChange={(e) => handleFilterChange('search', e.target.value)}
             placeholder="Search comments..."
-            className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100 text-sm"
+            className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100 text-xs"
           />
         </div>
       </div>
 
       {/* Custom Date Range Inputs */}
       {filters.dateRange === 'custom' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
               Start Date
             </label>
             <input
               type="date"
               value={filters.customDateStart || ''}
               onChange={(e) => handleFilterChange('customDateStart', e.target.value || null)}
-              className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100 text-sm"
+              className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100 text-xs"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
               End Date
             </label>
             <input
               type="date"
               value={filters.customDateEnd || ''}
               onChange={(e) => handleFilterChange('customDateEnd', e.target.value || null)}
-              className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100 text-sm"
+              className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-100 text-xs"
             />
           </div>
         </div>

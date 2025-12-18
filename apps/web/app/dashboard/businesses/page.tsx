@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import LoadingSpinner from '@/components/LoadingSpinner'
 import Image from 'next/image'
+import { FaExternalLinkAlt } from 'react-icons/fa'
 
 interface Business {
   id: string
@@ -182,9 +183,10 @@ export default function BusinessesPage() {
                   </Link>
                   <Link
                     href={`/business/${business.slug}`}
-                    className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                    className="px-3 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors flex items-center justify-center"
+                    title="View Public"
                   >
-                    View Public
+                    <FaExternalLinkAlt className="w-4 h-4" />
                   </Link>
                 </div>
               </div>

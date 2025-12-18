@@ -612,15 +612,15 @@ export default function DashboardPage() {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-4">
+      <div className="flex justify-between items-center mb-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Campaign Dashboard</h1>
-          <p className="text-gray-600 dark:text-gray-400 text-sm">Overview of all your campaigns and reviews</p>
+          <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Campaign Dashboard</h1>
+          <p className="text-gray-600 dark:text-gray-400 text-xs">Overview of all your campaigns and reviews</p>
         </div>
         <div className="flex gap-2">
           <button
             onClick={() => setShowQuickCreateModal(true)}
-            className="px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2 text-sm"
+            className="px-2 py-1 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-1.5 text-xs"
           >
             <FaPlus />
             Quick Create
@@ -628,11 +628,11 @@ export default function DashboardPage() {
           <div className="relative">
             <button
               onClick={() => setShowExportDropdown(!showExportDropdown)}
-              className="px-3 py-1.5 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-2 text-sm"
+              className="px-2 py-1 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-1.5 text-xs"
             >
               <FaDownload />
               Export Reviews
-              <FaChevronDown className="w-3 h-3" />
+              <FaChevronDown className="w-2.5 h-2.5" />
             </button>
             {showExportDropdown && (
               <>
@@ -640,17 +640,17 @@ export default function DashboardPage() {
                   className="fixed inset-0 z-10"
                   onClick={() => setShowExportDropdown(false)}
                 />
-                <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-20">
+                <div className="absolute right-0 mt-1.5 w-44 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-20">
                   <button
                     onClick={() => handleExportReviews('csv')}
-                    className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 rounded-t-lg"
+                    className="w-full px-3 py-1.5 text-left text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-1.5 rounded-t-lg"
                   >
                     <FaFileCsv />
                     Export as CSV
                   </button>
                   <button
                     onClick={() => handleExportReviews('pdf')}
-                    className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 rounded-b-lg"
+                    className="w-full px-3 py-1.5 text-left text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-1.5 rounded-b-lg"
                   >
                     <FaFilePdf />
                     Export as PDF
@@ -661,7 +661,7 @@ export default function DashboardPage() {
           </div>
           <Link
             href="/dashboard/events"
-            className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 text-sm"
+            className="px-2 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-1.5 text-xs"
           >
             <FaCalendar />
             Manage Campaigns
@@ -679,113 +679,113 @@ export default function DashboardPage() {
       )}
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 mb-4">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4 mb-3">
         <StatsCard
           title="Total Campaigns"
           value={stats.total_campaigns}
-          icon={<FaCalendar className="w-8 h-8" />}
+          icon={<FaCalendar className="w-6 h-6" />}
           href="/dashboard/events"
         />
         <StatsCard
           title="Total Reviews"
           value={stats.total_reviews}
-          icon={<FaComments className="w-8 h-8" />}
+          icon={<FaComments className="w-6 h-6" />}
         />
         <StatsCard
           title="Average Rating"
           value={stats.average_rating.toFixed(1)}
-          icon={<FaStar className="w-8 h-8" />}
+          icon={<FaStar className="w-6 h-6" />}
           subtitle="/ 5.0"
         />
         <StatsCard
           title="QR Codes"
           value={stats.total_qr_codes}
-          icon={<FaQrcode className="w-8 h-8" />}
+          icon={<FaQrcode className="w-6 h-6" />}
         />
       </div>
 
       {/* Charts Section */}
       {stats.total_reviews > 0 && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4">
-            <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-4">Review Trends</h2>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-3">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-3">
+            <h2 className="text-base font-bold text-gray-900 dark:text-gray-100 mb-3">Review Trends</h2>
             <ReviewTrendsChart
               data={stats.review_trends}
               timeframe={timeframe}
               onTimeframeChange={setTimeframe}
             />
           </div>
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4">
-            <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-4">Rating Distribution</h2>
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-3">
+            <h2 className="text-base font-bold text-gray-900 dark:text-gray-100 mb-3">Rating Distribution</h2>
             {stats.rating_distribution && stats.rating_distribution.some(r => r.count > 0) ? (
               <RatingDistributionChart data={stats.rating_distribution} />
             ) : (
-              <div className="flex flex-col items-center justify-center h-64 text-gray-500 dark:text-gray-400">
-                <p className="mb-2">No star ratings available</p>
-                <p className="text-sm text-center">Reviews for this campaign use custom questions instead of star ratings.</p>
+              <div className="flex flex-col items-center justify-center h-48 text-gray-500 dark:text-gray-400">
+                <p className="mb-1 text-sm">No star ratings available</p>
+                <p className="text-xs text-center">Reviews for this campaign use custom questions instead of star ratings.</p>
               </div>
             )}
           </div>
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-3">
         {/* Recent Campaign Reviews */}
         {stats.recent_reviews && stats.recent_reviews.length > 0 && (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4">
-            <div className="flex justify-between items-center mb-3">
-              <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">Recent Reviews</h2>
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-3">
+            <div className="flex justify-between items-center mb-2">
+              <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">Recent Reviews</h2>
               <Link
                 href="/dashboard/events"
-                className="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400"
+                className="text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400"
               >
                 View All
               </Link>
             </div>
-            <div className="space-y-3">
+            <div className="space-y-2">
               {stats.recent_reviews.slice(0, 5).map((review: any) => (
                 <div
                   key={review.id}
-                  className="border-b dark:border-gray-700 pb-3 last:border-0"
+                  className="border-b dark:border-gray-700 pb-2 last:border-0"
                 >
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-gray-900 dark:text-gray-100">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-medium text-sm text-gray-900 dark:text-gray-100">
                         {review.campaign?.name || 'Campaign'}
                       </span>
                       {review.campaign?.campaign_type && (
-                        <span className="text-xs px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded capitalize">
+                        <span className="text-xs px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded capitalize">
                           {review.campaign.campaign_type}
                         </span>
                       )}
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5">
                       {review.stars && (
                         <div className="flex">
                           {[1, 2, 3, 4, 5].map((n) => (
                             <span
                               key={n}
-                              className={review.stars >= n ? 'text-yellow-400' : 'text-gray-300'}
+                              className={`text-xs ${review.stars >= n ? 'text-yellow-400' : 'text-gray-300'}`}
                             >
                               ★
                             </span>
                           ))}
                         </div>
                       )}
-                      <span className="text-sm text-gray-500 dark:text-gray-400">
+                      <span className="text-xs text-gray-500 dark:text-gray-400">
                         {new Date(review.created_at).toLocaleDateString()}
                       </span>
                     </div>
                   </div>
                   {review.comment && (
-                    <p className="text-gray-700 dark:text-gray-300 text-sm line-clamp-2">{review.comment}</p>
+                    <p className="text-gray-700 dark:text-gray-300 text-xs line-clamp-2">{review.comment}</p>
                   )}
                   {review.tags && review.tags.length > 0 && (
-                    <div className="flex gap-1 flex-wrap mt-2">
+                    <div className="flex gap-1 flex-wrap mt-1.5">
                       {review.tags.map((tag: string, i: number) => (
                         <span
                           key={i}
-                          className="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded text-xs"
+                          className="px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded text-xs"
                         >
                           {tag}
                         </span>
@@ -800,26 +800,26 @@ export default function DashboardPage() {
 
         {/* Campaigns List */}
         {stats.campaigns && stats.campaigns.length > 0 && (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4">
-            <div className="flex justify-between items-center mb-3">
-              <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">Your Campaigns</h2>
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-3">
+            <div className="flex justify-between items-center mb-2">
+              <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">Your Campaigns</h2>
               <Link
                 href="/dashboard/events"
-                className="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400"
+                className="text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400"
               >
                 View All
               </Link>
             </div>
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               {stats.campaigns.slice(0, 5).map((campaign: any) => (
                 <Link
                   key={campaign.id}
                   href={`/dashboard/events/${campaign.id}`}
-                  className="block p-3 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors"
+                  className="block p-2 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors"
                 >
                   <div className="flex items-center justify-between">
-                    <h3 className="font-semibold text-gray-900 dark:text-gray-100">{campaign.name}</h3>
-                    <span className="text-sm text-gray-500 dark:text-gray-400">→</span>
+                    <h3 className="font-semibold text-sm text-gray-900 dark:text-gray-100">{campaign.name}</h3>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">→</span>
                   </div>
                 </Link>
               ))}
@@ -827,7 +827,7 @@ export default function DashboardPage() {
             {stats.campaigns.length > 5 && (
               <Link
                 href="/dashboard/events"
-                className="block text-center mt-4 text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400"
+                className="block text-center mt-3 text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400"
               >
                 View {stats.campaigns.length - 5} more campaigns
               </Link>
@@ -838,15 +838,15 @@ export default function DashboardPage() {
 
       {/* Empty State */}
       {stats.total_campaigns === 0 && (
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-8 text-center">
-          <FaCalendar className="w-12 h-12 mx-auto text-gray-300 dark:text-gray-600 mb-3" />
-          <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-1">No Campaigns Yet</h3>
-          <p className="text-gray-600 dark:text-gray-400 mb-4 text-sm">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 text-center">
+          <FaCalendar className="w-10 h-10 mx-auto text-gray-300 dark:text-gray-600 mb-2" />
+          <h3 className="text-base font-bold text-gray-900 dark:text-gray-100 mb-1">No Campaigns Yet</h3>
+          <p className="text-gray-600 dark:text-gray-400 mb-3 text-xs">
             Create your first campaign to start collecting reviews
           </p>
           <Link
             href="/dashboard/events"
-            className="inline-block px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+            className="inline-block px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs"
           >
             Create Campaign
           </Link>

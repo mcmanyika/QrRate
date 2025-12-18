@@ -248,7 +248,7 @@ export default function Home() {
       {/* Email Subscription Section */}
       <section className="container mx-auto px-4 py-10 md:py-14 relative z-10">
         <div className="max-w-2xl mx-auto">
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border border-gray-200 dark:border-gray-700">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm">
             <h3 className="text-2xl font-bold text-center text-gray-900 dark:text-gray-100 mb-2">
               Stay Updated
             </h3>
