@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import './globals.css'
 import { ThemeProvider } from '@/contexts/ThemeContext'
+import ErrorSuppressor from '@/components/ErrorSuppressor'
 
 export const metadata: Metadata = {
   title: 'FeedbackQR - Universal QR-Based Review Platform',
@@ -15,6 +16,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="antialiased">
+        <ErrorSuppressor />
         <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>

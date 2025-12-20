@@ -717,7 +717,10 @@ export default function EventDashboardPage() {
               )}
               <div className="flex gap-2">
                 <a
-                  href={campaignQRCode.qr_code_url}
+                  href={campaignQRCode.qr_code_url.replace(
+                    /https?:\/\/[^/]+/,
+                    'https://feedbackqr.app'
+                  )}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex-1 text-center px-3 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
@@ -726,7 +729,12 @@ export default function EventDashboardPage() {
                 </a>
                 <button
                   onClick={() => {
-                    navigator.clipboard.writeText(campaignQRCode.qr_code_url)
+                    // Replace localhost with production domain
+                    const productionUrl = campaignQRCode.qr_code_url.replace(
+                      /https?:\/\/[^/]+/,
+                      'https://feedbackqr.app'
+                    )
+                    navigator.clipboard.writeText(productionUrl)
                     alert('QR code URL copied to clipboard!')
                   }}
                   className="flex-1 px-3 py-2 bg-gray-600 text-white rounded text-sm hover:bg-gray-700"
