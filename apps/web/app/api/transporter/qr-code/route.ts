@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate QR code URL - this should point to the rating page with vehicle ID
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://feedbackqr.app'
     const qrCodeUrl = `${baseUrl}/rate/${vehicle_id}`
 
     // Generate QR code SVG
