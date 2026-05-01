@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { requireTransporter } from '@/lib/auth'
 import { createClient } from '@/lib/supabase/server'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET() {
   try {
     const transporter = await requireTransporter()
