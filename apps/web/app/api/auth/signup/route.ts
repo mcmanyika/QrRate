@@ -4,6 +4,16 @@ import { createClient } from '@supabase/supabase-js'
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
 
+function isMissingBusinessTableError(error: { message?: string; code?: string } | null) {
+  if (!error) return false
+  const message = error.message || ''
+  return (
+    message.includes("Could not find the table 'public.business'") ||
+    message.includes('relation "business" does not exist') ||
+    error.code === 'PGRST205'
+  )
+}
+
 export async function POST(request: NextRequest) {
   try {
     if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
@@ -67,7 +77,7 @@ export async function POST(request: NextRequest) {
       .select()
       .single()
 
-    if (businessError) {
+    if (businessError && !isMissingBusinessTableError(businessError)) {
       // If business insert fails, try to clean up the user
       await supabase.auth.admin.deleteUser(authData.user.id)
       return NextResponse.json(
@@ -76,9 +86,29 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Compatibility fallback for databases that only have transporter table.
+    if (businessError && isMissingBusinessTableError(businessError)) {
+      const { error: transporterError } = await supabase
+        .from('transporter')
+        .insert({
+          user_id: authData.user.id,
+          name,
+          email,
+          phone: phone || null,
+        })
+
+      if (transporterError) {
+        await supabase.auth.admin.deleteUser(authData.user.id)
+        return NextResponse.json(
+          { error: transporterError.message },
+          { status: 400 }
+        )
+      }
+    }
+
     return NextResponse.json({
       user: authData.user,
-      business,
+      business: business || null,
     })
   } catch (error) {
     return NextResponse.json(

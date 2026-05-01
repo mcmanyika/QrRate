@@ -4,6 +4,16 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter, useSearchParams } from 'next/navigation'
 
+function isMissingBusinessTableError(error: { message?: string; code?: string } | null) {
+  if (!error) return false
+  const message = error.message || ''
+  return (
+    message.includes("Could not find the table 'public.business'") ||
+    message.includes('relation "business" does not exist') ||
+    error.code === 'PGRST205'
+  )
+}
+
 export default function SignupForm() {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
@@ -24,15 +34,31 @@ export default function SignupForm() {
         setCompletingProfile(true)
         setEmail(user.email || '')
         // Try to get existing business data if any
-        const { data: business } = await supabase
+        const { data: business, error: businessError } = await supabase
           .from('business')
           .select('*')
           .eq('owner_id', user.id)
           .limit(1)
           .maybeSingle()
+
         if (business) {
           setName(business.name || '')
           setPhone(business.phone || '')
+          return
+        }
+
+        if (isMissingBusinessTableError(businessError)) {
+          const { data: transporter } = await supabase
+            .from('transporter')
+            .select('*')
+            .eq('user_id', user.id)
+            .limit(1)
+            .maybeSingle()
+
+          if (transporter) {
+            setName(transporter.name || '')
+            setPhone(transporter.phone || '')
+          }
         }
       }
     }
@@ -80,7 +106,7 @@ export default function SignupForm() {
           .eq('owner_id', user.id)
           .limit(1)
 
-        if (checkError) {
+        if (checkError && !isMissingBusinessTableError(checkError)) {
           console.error('Error checking existing business:', checkError)
         }
 
@@ -90,6 +116,24 @@ export default function SignupForm() {
           setLoading(false)
           window.location.href = '/dashboard'
           return
+        }
+
+        if (isMissingBusinessTableError(checkError)) {
+          const { data: existingTransporters, error: transporterCheckError } = await supabase
+            .from('transporter')
+            .select('id')
+            .eq('user_id', user.id)
+            .limit(1)
+
+          if (transporterCheckError) {
+            console.error('Error checking existing transporter profile:', transporterCheckError)
+          }
+
+          if (existingTransporters && existingTransporters.length > 0) {
+            setLoading(false)
+            window.location.href = '/dashboard'
+            return
+          }
         }
 
         console.log('Creating new business with data:', {
@@ -113,11 +157,32 @@ export default function SignupForm() {
           .select()
           .single()
 
-        if (businessError) {
+        if (businessError && !isMissingBusinessTableError(businessError)) {
           console.error('Business creation error:', businessError)
           console.error('Error details:', JSON.stringify(businessError, null, 2))
           setError(businessError.message || 'Failed to create business profile. Please try again.')
           setLoading(false)
+          return
+        }
+
+        if (businessError && isMissingBusinessTableError(businessError)) {
+          const { error: transporterError } = await supabase
+            .from('transporter')
+            .insert({
+              user_id: user.id,
+              name: name.trim(),
+              email: user.email || email,
+              phone: phone?.trim() || null,
+            })
+
+          if (transporterError) {
+            console.error('Transporter profile creation error:', transporterError)
+            setError(transporterError.message || 'Failed to create profile. Please try again.')
+            setLoading(false)
+            return
+          }
+
+          window.location.href = '/dashboard'
           return
         }
 

@@ -1,6 +1,16 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+function isMissingBusinessTableError(error: { message?: string; code?: string } | null) {
+  if (!error) return false
+  const message = error.message || ''
+  return (
+    message.includes("Could not find the table 'public.business'") ||
+    message.includes('relation "business" does not exist') ||
+    error.code === 'PGRST205'
+  )
+}
+
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request,
@@ -38,12 +48,23 @@ export async function updateSession(request: NextRequest) {
   // Check if user has business record (only for dashboard routes)
   let hasBusiness = false
   if (user && request.nextUrl.pathname.startsWith('/dashboard')) {
-    const { data: business } = await supabase
+    const { data: business, error: businessError } = await supabase
       .from('business')
       .select('id')
       .eq('owner_id', user.id)
       .maybeSingle()
-    hasBusiness = !!business
+
+    if (business) {
+      hasBusiness = true
+    } else if (isMissingBusinessTableError(businessError)) {
+      // Compatibility fallback for databases still using transporter profile only.
+      const { data: transporter } = await supabase
+        .from('transporter')
+        .select('id')
+        .eq('user_id', user.id)
+        .maybeSingle()
+      hasBusiness = !!transporter
+    }
   }
 
   // Redirect authenticated users away from login/verify-phone (but allow signup if no business)
