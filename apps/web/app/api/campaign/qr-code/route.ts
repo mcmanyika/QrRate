@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
-    
+
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
         .select('id')
         .eq('code', code)
         .single()
-      
+
       if (!existing) {
         isUnique = true
       } else {

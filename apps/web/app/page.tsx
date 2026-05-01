@@ -327,7 +327,7 @@ export default function Home() {
       {/* App Download Section */}
       <section className="container mx-auto px-4 py-10 md:py-14 relative z-10">
         <div className="max-w-5xl mx-auto text-center relative">
-          <div className="absolute inset-0 bg-gradient-to-r from-blue-600/20 via-purple-600/20 to-pink-600/20 rounded-2xl blur-3xl"></div>
+          <div className="absolute inset-0 rounded-2xl"></div>
           <div className="relative bg-white/90 dark:bg-gray-800/90 backdrop-blur-md rounded-2xl p-4 md:p-5 border border-gray-200 dark:border-gray-700">
             <h2 className="text-3xl md:text-4xl font-extrabold mb-1 gradient-text dark:text-gray-100 tracking-tight">
               Download the App
